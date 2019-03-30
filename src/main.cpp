@@ -12,11 +12,14 @@
 #include <DallasTemperature.h>
 
 #include "FS.h"
+#include "Ticker.h"
 
 // +++++++++++++++++++
 
 #define NODE_NAME "F42-NODE"
 #define DEFAULT_LOCATION "laboratory"
+
+#define FETCH_SENSORS_CYCLE_SEC 10
 
 #define ONE_WIRE_BUS 4
 
@@ -49,17 +52,18 @@ WiFiServer server(80);
 WiFiClient client;
 
 String configHtml = "";
-
 String location = DEFAULT_LOCATION;
 
-typedef struct {
+typedef struct SensorData {
   String id;
   String type;
   String name;
   String value;
-} SensorStruct;
+} SensorData;
 
-SensorStruct sensors[MAX_SENSORS] = {
+SensorData tmpSensor = {"tmp", "tmp", "tmp", "xx.xx"};
+
+SensorData sensors[MAX_SENSORS] = {
   {"", "", "", ""}, 
   {"", "", "", ""}, 
   {"", "", "", ""}, 
@@ -74,17 +78,8 @@ SensorStruct sensors[MAX_SENSORS] = {
 
 // ------------------------------------------------------------------------------------------------
 
-void addr2hex(DeviceAddress da, char hex[16]) {
-  sprintf(hex, "%02X%02X%02X%02X%02X%02X%02X%02X", da[0], da[1], da[2], da[3], da[4], da[5], da[6], da[7]);
-}
-
-// function to print the temperature for a device
-void printTemperature(DeviceAddress da) {
-  float tempC = dsSensors.getTempC(da);
-  Serial.print("Temp C: ");
-  Serial.print(tempC);
-  Serial.print(" Temp F: ");
-  Serial.print(DallasTemperature::toFahrenheit(tempC));
+void addr2hex(DeviceAddress da, char hex[17]) {
+  snprintf(hex, 17, "%02X%02X%02X%02X%02X%02X%02X%02X", da[0], da[1], da[2], da[3], da[4], da[5], da[6], da[7]);
 }
 
 void addSensor(String id, String type) {
@@ -105,13 +100,15 @@ String getSensorName(String id) {
   return (idx < MAX_SENSORS) ? sensors[idx].name : ""; 
 }
 
-
-void updateSensorName(String id, String name) {
+SensorData& getSensorData(String id) {
   uint8_t idx = 0;
   while (!sensors[idx].id.equals(id) && idx < MAX_SENSORS) {++idx;}
-  if (idx < MAX_SENSORS) {
-    sensors[idx].name = name;
-  }
+  return idx < MAX_SENSORS ? sensors[idx] : tmpSensor;
+}
+
+void printSensorData(String id) {
+  SensorData sd = getSensorData(id);
+  Serial.println(sd.type + " " + sd.name + "(" + sd.id + "): "+ sd.value);
 }
 
 uint16_t getPayload(char payload[]) {
@@ -242,7 +239,7 @@ void handleRequest() {
       String id = findData(dataline, "id"); 
       String newName = findData(dataline, "name");
       if (id.length() > 0 && isNewValue(getSensorName(id), newName)) {
-        updateSensorName(id, newName);
+        getSensorData(id).name = newName;
         needSave = true;
       }
       
@@ -292,7 +289,7 @@ void loadConfigFile() {
         int eq = line.indexOf("=");
         String id = line.substring(sizeof("sensor-")-1, eq);
         String name = line.substring(eq+1);
-        updateSensorName(id, name);
+        getSensorData(id).name = name;
         debug_println("-> Sensor("+id+")='"+name+"'");
       }
       ++idx;
@@ -313,6 +310,21 @@ void loadConfig() {
 
   SPIFFS.end();
 }
+
+void fetchAndSendSensorValues() {
+  // request to all devices on the bus
+  dsSensors.requestTemperatures();
+
+  for (uint8_t i = 0; i < deviceCount; ++i) {
+    char idbuf[17];
+    float tempC = dsSensors.getTempC(deviceAddresses[i]);
+    addr2hex(deviceAddresses[i], idbuf);
+    getSensorData(idbuf).value = String(tempC, 2);
+    // printSensorData(idbuf);
+  }
+}
+
+Ticker timer1(fetchAndSendSensorValues, FETCH_SENSORS_CYCLE_SEC * 1000);
 
 void setup(void) {
   // start serial port
@@ -348,7 +360,7 @@ void setup(void) {
       Serial.print("Unable to find address for Device "); 
       Serial.print(i, DEC);
     } else {
-      char hexbuf[16];
+      char hexbuf[17];
       addr2hex(deviceAddresses[i], hexbuf);
       addSensor(hexbuf, "DS18B20");
     }
@@ -358,6 +370,8 @@ void setup(void) {
 
   Serial.println("Run web server for configuration.");
   server.begin();
+
+  timer1.start();
 }
 
 void loop(void)
@@ -371,13 +385,5 @@ void loop(void)
     client.stop();    
   }
 
-  // call dsSensors.requestTemperatures() to issue a global temperature 
-  // request to all devices on the bus
-  // Serial.print("Requesting temperatures...");
-  // dsSensors.requestTemperatures();
-  // Serial.println("DONE");
-
-  // for (uint8_t i = 0; i < deviceCount; ++i) {
-  //   printData(deviceAddresses[i]);
-  // }
+  timer1.update();
  }
