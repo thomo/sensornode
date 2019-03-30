@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html><head>
+<title>Configure Measurement Node</title>
+<meta charset=UTF-8>
+<style type=text/css>
+body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helvetica,sans-serif}
+.g{background:#fff;overflow:hidden;border:1px solid #069;-webkit-border-radius:8px;-moz-border-radius:8px;border-radius:8px}
+.g table{border-collapse:collapse;text-align:left;width:100%}
+.g table td,.g table th{padding:3px 10px}
+.g table thead th{background-color:#069;color:#fff;font-size:15px;border-left:1px solid #0070a8}
+.g table tbody td{color:#00496b;border-left:1px solid #e1eef4;font-size:12px;font-weight:normal}
+.g table tfoot td{padding:0;font-size:12px}
+.c{display:inline-block;border-radius:2em;padding:2em;background-color:#a6b3be;border:2px solid #0e304a}
+.c table{margin:0 auto}
+.c th,.c td{text-align:left}
+</style>
+</head>
+<body>
+<div class=c>
+<h1>Configuration</h1>
+<h2 id="location"></h2>
+<div class="g">
+<table>
+<thead><tr><th>Sensor Id</th><th>Type</th><th>Name</th><th>Last Value</th></tr></thead>
+<tbody id="sensor-list"></tbody></table>
+</div>
+<h2>Update config</h2>
+<form id="dlg" action="/" method="post">
+  <table>
+    <tr><th>Location</th><td><input type=text name=location value=""/></td></tr>
+    <tr><td colspan=2><hr/></td></tr>
+    <tr><th>Sensor id</th><td><select id="sensor_id" name="id"></select></td></tr>
+    <tr><th>Sensor name</th><td><input id="sensor_name" type=text name="name"/></td></tr>
+    <tr><td colspan=2><hr/></td></tr>
+    <tr><td colspan=2 style=text-align:right><input type=submit name=action value=update /></td></tr>
+  </table>
+</form>
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script>
+$(document).ready(function() {
+    $.ajax({
+      url: "http://"+document.location.host+"/location"
+    }).then(function(data) {
+      $('#location').append(data.location);
+      $('input[name=location]').attr("value", data.location);
+    });
+    $.ajax({
+      url: "http://"+document.location.host+"/sensors"
+    }).then(function(data) {
+      var s= document.getElementById('sensor_id');
+      for (var id in data.sensors) {
+        s.options[s.options.length]= new Option(id);
+        $('#sensor-list').append("<tr><td>"
+          +id+"</td><td>"
+          +data.sensors[id].type+"</td><td>"
+          +data.sensors[id].name+"</td><td>"
+          +data.sensors[id].value+"</td></tr>");
+      }
+    });
+});
+</script>
+</body></html>
