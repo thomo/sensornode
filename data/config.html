@@ -43,14 +43,13 @@ $(document).ready(function() {
       url: "http://"+document.location.host+"/location"
     }).then(function(data) {
       $('#location').append(data.location);
-      $('input[name=location]').attr("value", data.location);
     });
     $.ajax({
       url: "http://"+document.location.host+"/sensors"
     }).then(function(data) {
       var s= document.getElementById('sensor_id');
       for (var id in data.sensors) {
-        s.options[s.options.length]= new Option(id);
+        s.options[s.options.length]= new Option(data.sensors[id].name+" ("+id+")", id);
         $('#sensor-list').append("<tr><td>"
           +id+"</td><td>"
           +data.sensors[id].type+"</td><td>"

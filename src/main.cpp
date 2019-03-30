@@ -26,6 +26,12 @@
 
 #define PAYLOAD_BUFFER_SIZE 1024+20+20+MAX_SENSORS*40 
 
+#define DEBUG 0
+#define debug_print(line) \
+            do { if (DEBUG) Serial.print(line); } while (0)
+#define debug_println(line) \
+            do { if (DEBUG) Serial.println(line); } while (0)
+
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
 
@@ -40,6 +46,7 @@ DeviceAddress* deviceAddresses = NULL;
 WiFiManager wifiManager;
 
 WiFiServer server(80);
+WiFiClient client;
 
 String configHtml = "";
 
@@ -88,26 +95,26 @@ void addSensor(String id, String type) {
     sensors[idx].type = type;
     sensors[idx].name = id;
     sensors[idx].value = "?";
-    Serial.print("Add sensor: type: ");
-    Serial.print(type);
-    Serial.print(" Id: 0x");
-    Serial.println(id);
+    debug_println("Add "+type+" sensor("+id+")");
   }
 }
+
+String getSensorName(String id) {
+  uint8_t idx = 0;
+  while (!sensors[idx].id.equals(id) && idx < MAX_SENSORS) {++idx;}
+  return (idx < MAX_SENSORS) ? sensors[idx].name : ""; 
+}
+
 
 void updateSensorName(String id, String name) {
   uint8_t idx = 0;
   while (!sensors[idx].id.equals(id) && idx < MAX_SENSORS) {++idx;}
   if (idx < MAX_SENSORS) {
-    Serial.print("Set name ");
-    Serial.print(sensors[idx].id);
-    Serial.print(" = ");
-    Serial.println(name);
     sensors[idx].name = name;
   }
 }
 
-uint16_t getPayload(WiFiClient &client, char payload[]) {
+uint16_t getPayload(char payload[]) {
   uint16_t index=0;
   while (client.connected() && client.available()) {
     if (client.available() && index < PAYLOAD_BUFFER_SIZE - 1) {
@@ -123,7 +130,7 @@ uint16_t getPayload(WiFiClient &client, char payload[]) {
   return index;
 }
 
-void printKV(WiFiClient &client, String k, String v) {
+void printKV(String k, String v) {
   client.print("\"");
   client.print(k);
   client.print("\":\"");
@@ -136,8 +143,9 @@ String findData(String line, String key) {
   int eIndex = line.indexOf("&", sIndex);
   if (eIndex > 0) {
     return line.substring(sIndex, eIndex);
-  } 
-  return line.substring(sIndex);
+  } else {
+    return line.substring(sIndex);
+  }
 } 
 
 void saveConfig() {
@@ -147,31 +155,35 @@ void saveConfig() {
   }
   File f = SPIFFS.open(CONFIG_FILE, "w");
   if (!f) {
-    Serial.print(CONFIG_FILE);
-    Serial.println(" open failed");
+    Serial.println("File '"+String(CONFIG_FILE)+"' open to write failed");
   } else {
-    Serial.println("Save config file");
+    Serial.print("Save config file ...");
+    
     f.println("location=" + location);
-    Serial.println("Location: " + location);
+    debug_println("<- location='" + location+"'");
     
     uint8_t idx = 0;
     while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
       f.println("sensor-" + sensors[idx].id + "=" + sensors[idx].name);
-      Serial.println("Sensor: " + sensors[idx].id + "= " + sensors[idx].name);
+      debug_println("<- Sensor(" + sensors[idx].id + ")='" + sensors[idx].name+"'");
       ++idx;
     }
     
     f.close();
+
+    Serial.println(" done");
   }
 
   SPIFFS.end();
 }
 
-void handleRequest(WiFiClient &client) {
-  char payloadBuffer[PAYLOAD_BUFFER_SIZE];
+bool isNewValue(String oldValue, String newValue) {
+  return newValue.length() > 0 && !oldValue.equals(newValue);
+}
 
-  uint16_t payloadSize = getPayload(client, payloadBuffer);
-  // Serial.println(payloadBuffer);
+void handleRequest() {
+  char payloadBuffer[PAYLOAD_BUFFER_SIZE];
+  uint16_t payloadSize = getPayload(payloadBuffer);
 
   if (payloadSize > 0) {
     String payload(payloadBuffer);
@@ -181,7 +193,6 @@ void handleRequest(WiFiClient &client) {
       client.println("Content-Type: text/html");
       client.println("Connection: close");  // the connection will be closed after completion of the response
       client.println();
-      client.println("<!DOCTYPE HTML>");
       client.println(configHtml);
     } else if (payload.indexOf("GET /location HTTP") > -1) { 
       // GET /location
@@ -191,7 +202,7 @@ void handleRequest(WiFiClient &client) {
       client.println("Connection: close");
       client.println();
       client.print("{");
-      printKV(client, "location", location);
+      printKV("location", location);
       client.println("}");
     } else if (payload.indexOf("GET /sensors HTTP") > -1) {
       // GET /sensors
@@ -208,34 +219,41 @@ void handleRequest(WiFiClient &client) {
         client.print("\"");
         client.print(sensors[idx].id); 
         client.print("\":{");
-        printKV(client, "name", sensors[idx].name); 
+        printKV("name", sensors[idx].name); 
         client.print(", ");
-        printKV(client, "type", sensors[idx].type); 
+        printKV("type", sensors[idx].type); 
         client.print(", ");
-        printKV(client, "value", sensors[idx].value); 
+        printKV("value", sensors[idx].value); 
         client.print("} ");
         sep = ", ";
         ++idx;
       }
       client.println("}}");
     } else if (payload.indexOf("POST / HTTP") > -1) {
+      debug_println(payload);
       // POST new sensor name
+      bool needSave = false;
       String dataline = payload.substring(payload.indexOf("\n\n")+2);
-      location = findData(dataline, "location"); 
-      String newName = findData(dataline, "name"); 
-      String id = findData(dataline, "id"); 
-      if (id.length() > 0 && newName.length() > 0) {
-        updateSensorName(id, newName);
+      String newLocation = findData(dataline, "location"); 
+      if (isNewValue(location, newLocation)) {
+        location = newLocation;
+        needSave = true;
       }
-
-      saveConfig();
-
+      String id = findData(dataline, "id"); 
+      String newName = findData(dataline, "name");
+      if (id.length() > 0 && isNewValue(getSensorName(id), newName)) {
+        updateSensorName(id, newName);
+        needSave = true;
+      }
+      
       uint16_t sIndex = payload.indexOf("Referer: http://")+16;
       uint16_t eIndex = payload.indexOf("\n", sIndex);
       String ref = payload.substring(sIndex, eIndex);
       client.println("HTTP/1.1 303 See Other");
       client.print("Location: http://");
       client.println(ref);
+
+      if (needSave) saveConfig();
     } else {
       client.println("HTTP/1.0 404 Not Found");
     }
@@ -247,8 +265,7 @@ void handleRequest(WiFiClient &client) {
 void loadConfigHtml() {
   File f = SPIFFS.open(CONFIG_HTML, "r");
   if (!f) {
-    Serial.print(CONFIG_HTML);
-    Serial.println(" not found/open failed");
+    Serial.println("File '"+String(CONFIG_HTML)+"' not found/open failed");
   } else {
     while(f.available()) {
       configHtml = configHtml + f.readString();
@@ -260,21 +277,28 @@ void loadConfigHtml() {
 void loadConfigFile() {
   File f = SPIFFS.open(CONFIG_FILE, "r");
   if (!f) {
-    Serial.print(CONFIG_FILE);
-    Serial.println(" not found/open failed - use default values");
+    Serial.println("File '"+String(CONFIG_FILE)+"' not found/open failed - use default values");
   } else {
+    Serial.print("Load config file ...");
     uint8_t idx = 0;
     while(f.available() && idx < MAX_SENSORS) {
-      String line = f.readString();
+      String line = f.readStringUntil('\n');
+      line.remove(line.length()-1); // remove CR 
+      debug_println("line: '"+line+"'");
       if (line.indexOf("location=") >= 0) {
-        location = line.substring(sizeof("location="));
-      } else if (line.indexOf("sensor%-") >= 0) {        // Note: %- escape the minus
+        location = line.substring(sizeof("location=")-1);
+        debug_println("-> location='" + location+"'");
+      } else if (line.indexOf("sensor-") >= 0) {        // Note: %- escape the minus
         int eq = line.indexOf("=");
-        updateSensorName(line.substring(sizeof("sensor%-"), eq), line.substring(eq));
+        String id = line.substring(sizeof("sensor-")-1, eq);
+        String name = line.substring(eq+1);
+        updateSensorName(id, name);
+        debug_println("-> Sensor("+id+")='"+name+"'");
       }
       ++idx;
     }
     f.close();
+    Serial.println(" - done");
   }
 }
 
@@ -312,9 +336,9 @@ void setup(void) {
   deviceCount = dsSensors.getDeviceCount();
 
   // locate devices on the bus
-  Serial.print("Found ");
-  Serial.print(deviceCount, DEC);
-  Serial.println(" devices.");
+  debug_print("Found ");
+  debug_print(deviceCount);
+  debug_println(" devices.");
 
   deviceAddresses = (DeviceAddress*) calloc(deviceCount, sizeof(DeviceAddress));
 
@@ -339,9 +363,9 @@ void setup(void) {
 void loop(void)
 { 
   // listen for incoming clients
-  WiFiClient client = server.available();
+  client = server.available();
   if (client) {
-    handleRequest(client);
+    handleRequest();
 
     // close the connection:
     client.stop();    
