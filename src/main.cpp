@@ -16,8 +16,7 @@
 
 // +++++++++++++++++++
 
-#define NODE_NAME "F42-NODE"
-#define DEFAULT_LOCATION "laboratory"
+#define DEFAULT_NODE_NAME "F42-NODE"
 
 #define FETCH_SENSORS_CYCLE_SEC 10
 
@@ -52,7 +51,7 @@ WiFiServer server(80);
 WiFiClient client;
 
 String configHtml = "";
-String location = DEFAULT_LOCATION;
+String nodeName = DEFAULT_NODE_NAME;
 
 typedef struct SensorData {
   String id;
@@ -156,8 +155,8 @@ void saveConfig() {
   } else {
     Serial.print("Save config file ...");
     
-    f.println("location=" + location);
-    debug_println("<- location='" + location+"'");
+    f.println("node=" + nodeName);
+    debug_println("<- node='" + nodeName+"'");
     
     uint8_t idx = 0;
     while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
@@ -191,15 +190,15 @@ void handleRequest() {
       client.println("Connection: close");  // the connection will be closed after completion of the response
       client.println();
       client.println(configHtml);
-    } else if (payload.indexOf("GET /location HTTP") > -1) { 
-      // GET /location
+    } else if (payload.indexOf("GET /node HTTP") > -1) { 
+      // GET /node
       client.println("HTTP/1.1 200 OK");
       client.println("Access-Control-Allow-Origin:null");
       client.println("Content-Type: application/json");
       client.println("Connection: close");
       client.println();
       client.print("{");
-      printKV("location", location);
+      printKV("node", nodeName);
       client.println("}");
     } else if (payload.indexOf("GET /sensors HTTP") > -1) {
       // GET /sensors
@@ -220,6 +219,8 @@ void handleRequest() {
         client.print(", ");
         printKV("type", sensors[idx].type); 
         client.print(", ");
+        printKV("measurand", ""); 
+        client.print(", ");
         printKV("value", sensors[idx].value); 
         client.print("} ");
         sep = ", ";
@@ -231,9 +232,9 @@ void handleRequest() {
       // POST new sensor name
       bool needSave = false;
       String dataline = payload.substring(payload.indexOf("\n\n")+2);
-      String newLocation = findData(dataline, "location"); 
-      if (isNewValue(location, newLocation)) {
-        location = newLocation;
+      String newNodeName = findData(dataline, "node"); 
+      if (isNewValue(nodeName, newNodeName)) {
+        nodeName = newNodeName;
         needSave = true;
       }
       String id = findData(dataline, "id"); 
@@ -282,10 +283,12 @@ void loadConfigFile() {
       String line = f.readStringUntil('\n');
       line.remove(line.length()-1); // remove CR 
       debug_println("line: '"+line+"'");
-      if (line.indexOf("location=") >= 0) {
-        location = line.substring(sizeof("location=")-1);
-        debug_println("-> location='" + location+"'");
-      } else if (line.indexOf("sensor-") >= 0) {        // Note: %- escape the minus
+
+      if (line.indexOf("node=") >= 0) {
+        nodeName = line.substring(sizeof("node=")-1);
+        debug_println("-> node='"+nodeName+"'");
+      
+      } else if (line.indexOf("sensor-") >= 0) {        
         int eq = line.indexOf("=");
         String id = line.substring(sizeof("sensor-")-1, eq);
         String name = line.substring(eq+1);
@@ -333,7 +336,7 @@ void setup(void) {
   // autoconnect timeout: 3min
   wifiManager.setConfigPortalTimeout(180);
   
-  if(!wifiManager.autoConnect(NODE_NAME)) {
+  if(!wifiManager.autoConnect(DEFAULT_NODE_NAME)) {
     Serial.println("failed to connect and hit timeout");
     //reset and try again, or maybe put it to deep sleep
     ESP.reset();
@@ -374,8 +377,7 @@ void setup(void) {
   timer1.start();
 }
 
-void loop(void)
-{ 
+void loop(void) { 
   // listen for incoming clients
   client = server.available();
   if (client) {

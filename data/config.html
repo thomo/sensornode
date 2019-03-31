@@ -18,16 +18,16 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
 <body>
 <div class=c>
 <h1>Configuration</h1>
-<h2 id="location"></h2>
+<h2>Node: <span id="node"></span></h2>
 <div class="g">
 <table>
-<thead><tr><th>Sensor Id</th><th>Type</th><th>Name</th><th>Last Value</th></tr></thead>
+<thead><tr><th>Sensor Id</th><th>Type</th><th>Measurand</th><th>Name</th><th>Last Value</th></tr></thead>
 <tbody id="sensor-list"></tbody></table>
 </div>
 <h2>Update config</h2>
 <form id="dlg" action="/" method="post">
   <table>
-    <tr><th>Location</th><td><input type=text name=location value=""/></td></tr>
+    <tr><th>Node</th><td><input type=text name=node value=""/></td></tr>
     <tr><td colspan=2><hr/></td></tr>
     <tr><th>Sensor id</th><td><select id="sensor_id" name="id"></select></td></tr>
     <tr><th>Sensor name</th><td><input id="sensor_name" type=text name="name"/></td></tr>
@@ -40,9 +40,9 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
 <script>
 $(document).ready(function() {
     $.ajax({
-      url: "http://"+document.location.host+"/location"
+      url: "http://"+document.location.host+"/node"
     }).then(function(data) {
-      $('#location').append(data.location);
+      $('#node').append(data.node);
     });
     $.ajax({
       url: "http://"+document.location.host+"/sensors"
@@ -53,6 +53,7 @@ $(document).ready(function() {
         $('#sensor-list').append("<tr><td>"
           +id+"</td><td>"
           +data.sensors[id].type+"</td><td>"
+          +data.sensors[id].measurand+"</td><td>"
           +data.sensors[id].name+"</td><td>"
           +data.sensors[id].value+"</td></tr>");
       }
