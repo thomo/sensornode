@@ -81,13 +81,14 @@ void addr2hex(DeviceAddress da, char hex[17]) {
   snprintf(hex, 17, "%02X%02X%02X%02X%02X%02X%02X%02X", da[0], da[1], da[2], da[3], da[4], da[5], da[6], da[7]);
 }
 
-void addSensor(String id, String type) {
+void addSensor(String id, String type, String measurand) {
   uint8_t idx = 0;
   while (sensors[idx].id != "" && idx < MAX_SENSORS) {++idx;}
   if (idx < MAX_SENSORS) {
     sensors[idx].id = id;
     sensors[idx].type = type;
     sensors[idx].name = id;
+    sensors[idx].measurand = measurand;
     sensors[idx].value = "?";
     debug_println("Add "+type+" sensor("+id+")");
   }
@@ -219,7 +220,7 @@ void handleRequest() {
         client.print(", ");
         printKV("type", sensors[idx].type); 
         client.print(", ");
-        printKV("measurand", ""); 
+        printKV("measurand", sensors[idx].measurand); 
         client.print(", ");
         printKV("value", sensors[idx].value); 
         client.print("} ");
@@ -365,7 +366,7 @@ void setup(void) {
     } else {
       char hexbuf[17];
       addr2hex(deviceAddresses[i], hexbuf);
-      addSensor(hexbuf, "DS18B20");
+      addSensor(hexbuf, "DS18B20", "temperature");
     }
   }
 
