@@ -57,23 +57,13 @@ typedef struct SensorData {
   String id;
   String type;
   String name;
+  String measurand;
   String value;
 } SensorData;
 
-SensorData tmpSensor = {"tmp", "tmp", "tmp", "xx.xx"};
+SensorData tmpSensor = {"", "", "", "?"};
 
-SensorData sensors[MAX_SENSORS] = {
-  {"", "", "", ""}, 
-  {"", "", "", ""}, 
-  {"", "", "", ""}, 
-  {"", "", "", ""}, 
-  {"", "", "", ""},
-  {"", "", "", ""}, 
-  {"", "", "", ""}, 
-  {"", "", "", ""}, 
-  {"", "", "", ""}, 
-  {"", "", "", ""}
-};
+SensorData sensors[MAX_SENSORS]; 
 
 // ------------------------------------------------------------------------------------------------
 
@@ -244,6 +234,8 @@ void handleRequest() {
         getSensorData(id).name = newName;
         needSave = true;
       }
+
+      if (needSave) saveConfig();
       
       uint16_t sIndex = payload.indexOf("Referer: http://")+16;
       uint16_t eIndex = payload.indexOf("\n", sIndex);
@@ -251,8 +243,6 @@ void handleRequest() {
       client.println("HTTP/1.1 303 See Other");
       client.print("Location: http://");
       client.println(ref);
-
-      if (needSave) saveConfig();
     } else {
       client.println("HTTP/1.0 404 Not Found");
     }
@@ -324,13 +314,38 @@ void fetchAndSendSensorValues() {
     float tempC = dsSensors.getTempC(deviceAddresses[i]);
     addr2hex(deviceAddresses[i], idbuf);
     getSensorData(idbuf).value = String(tempC, 2);
-    // printSensorData(idbuf);
   }
+  
+  // measurand + location + node + sensor + value + fix + null
+  // 20 + 30 + 30 + 20 + 20 + ",location=,node=,sensor= value=" + 1 => 100 + 23 + 1 = 144
+  char dataLine[144]; 
+  uint8_t idx = 0;
+  while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
+    sprintf(dataLine,"%s,location=%s,node=%s,sensor=%s value=%s", 
+      sensors[idx].measurand.c_str(), 
+      sensors[idx].name.c_str(), 
+      nodeName.c_str(), 
+      sensors[idx].type.c_str(), 
+      sensors[idx].value.c_str());
+    Serial.println(dataLine);
+    ++idx;
+  }
+  // cmd = "mosquitto_pub -h mqtt.thomo.de -m '" + db_line + "' -t f42/ground/bathroom"
+
+  // printSensorData(idbuf);
 }
 
 Ticker timer1(fetchAndSendSensorValues, FETCH_SENSORS_CYCLE_SEC * 1000);
 
 void setup(void) {
+  for(uint8_t i=0; i<MAX_SENSORS; ++i) {
+    sensors[i].id = "";
+    sensors[i].type = "";
+    sensors[i].name = "";
+    sensors[i].measurand = "";
+    sensors[i].value = "";
+  }
+
   // start serial port
   Serial.begin(9600);
 
