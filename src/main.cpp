@@ -57,11 +57,12 @@ typedef struct SensorData {
   String id;
   String type;
   String location;
+  String topic;
   String measurand;
   String value;
 } SensorData;
 
-SensorData tmpSensor = {"", "", "", "", "?"};
+SensorData tmpSensor = {"", "", "", "", "", "?"};
 
 SensorData sensors[MAX_SENSORS]; 
 
@@ -78,6 +79,7 @@ void addSensor(String id, String type, String measurand) {
     sensors[idx].id = id;
     sensors[idx].type = type;
     sensors[idx].location = id;
+    sensors[idx].topic = id;
     sensors[idx].measurand = measurand;
     sensors[idx].value = "?";
     debug_println("Add "+type+" sensor("+id+")");
@@ -235,6 +237,8 @@ void handleRequest() {
       newLocation.toLowerCase();
       if (id.length() > 0 && isNewValue(getSensorLocation(id), newLocation)) {
         getSensorData(id).location = newLocation;
+        newLocation.replace(".", "/");
+        getSensorData(id).topic = newLocation;
         needSave = true;
       }
 
@@ -288,6 +292,8 @@ void loadConfigFile() {
         String location = line.substring(eq+1);
         getSensorData(id).location = location;
         debug_println("-> Sensor("+id+")='"+location+"'");
+        location.replace(".", "/");
+        getSensorData(id).topic = location;
       }
       ++idx;
     }
@@ -322,6 +328,7 @@ void fetchAndSendSensorValues() {
   // measurand + location + node + sensor + value + fix + null
   // 20 + 30 + 30 + 20 + 20 + ",location=,node=,sensor= value=" + 1 => 100 + 23 + 1 = 144
   char dataLine[144]; 
+
   uint8_t idx = 0;
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
     sprintf(dataLine,"%s,location=%s,node=%s,sensor=%s value=%s", 
@@ -330,6 +337,9 @@ void fetchAndSendSensorValues() {
       nodeName.c_str(), 
       sensors[idx].type.c_str(), 
       sensors[idx].value.c_str());
+
+    Serial.print(sensors[idx].topic);
+    Serial.print(" ");
     Serial.println(dataLine);
     ++idx;
   }
