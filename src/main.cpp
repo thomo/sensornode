@@ -56,12 +56,12 @@ String nodeName = DEFAULT_NODE_NAME;
 typedef struct SensorData {
   String id;
   String type;
-  String name;
+  String location;
   String measurand;
   String value;
 } SensorData;
 
-SensorData tmpSensor = {"", "", "", "?"};
+SensorData tmpSensor = {"", "", "", "", "?"};
 
 SensorData sensors[MAX_SENSORS]; 
 
@@ -77,17 +77,17 @@ void addSensor(String id, String type, String measurand) {
   if (idx < MAX_SENSORS) {
     sensors[idx].id = id;
     sensors[idx].type = type;
-    sensors[idx].name = id;
+    sensors[idx].location = id;
     sensors[idx].measurand = measurand;
     sensors[idx].value = "?";
     debug_println("Add "+type+" sensor("+id+")");
   }
 }
 
-String getSensorName(String id) {
+String getSensorLocation(String id) {
   uint8_t idx = 0;
   while (!sensors[idx].id.equals(id) && idx < MAX_SENSORS) {++idx;}
-  return (idx < MAX_SENSORS) ? sensors[idx].name : ""; 
+  return (idx < MAX_SENSORS) ? sensors[idx].location : ""; 
 }
 
 SensorData& getSensorData(String id) {
@@ -98,7 +98,7 @@ SensorData& getSensorData(String id) {
 
 void printSensorData(String id) {
   SensorData sd = getSensorData(id);
-  Serial.println(sd.type + " " + sd.name + "(" + sd.id + "): "+ sd.value);
+  Serial.println(sd.type + " " + sd.location + "(" + sd.id + "): "+ sd.value);
 }
 
 uint16_t getPayload(char payload[]) {
@@ -151,8 +151,8 @@ void saveConfig() {
     
     uint8_t idx = 0;
     while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
-      f.println("sensor-" + sensors[idx].id + "=" + sensors[idx].name);
-      debug_println("<- Sensor(" + sensors[idx].id + ")='" + sensors[idx].name+"'");
+      f.println("sensor-" + sensors[idx].id + "=" + sensors[idx].location);
+      debug_println("<- Sensor(" + sensors[idx].id + ")='" + sensors[idx].location+"'");
       ++idx;
     }
     
@@ -206,7 +206,7 @@ void handleRequest() {
         client.print("\"");
         client.print(sensors[idx].id); 
         client.print("\":{");
-        printKV("name", sensors[idx].name); 
+        printKV("location", sensors[idx].location); 
         client.print(", ");
         printKV("type", sensors[idx].type); 
         client.print(", ");
@@ -220,18 +220,21 @@ void handleRequest() {
       client.println("}}");
     } else if (payload.indexOf("POST / HTTP") > -1) {
       debug_println(payload);
-      // POST new sensor name
+      // POST new node name and/or a new sensor location
       bool needSave = false;
       String dataline = payload.substring(payload.indexOf("\n\n")+2);
       String newNodeName = findData(dataline, "node"); 
+      newNodeName.trim();
       if (isNewValue(nodeName, newNodeName)) {
         nodeName = newNodeName;
         needSave = true;
       }
       String id = findData(dataline, "id"); 
-      String newName = findData(dataline, "name");
-      if (id.length() > 0 && isNewValue(getSensorName(id), newName)) {
-        getSensorData(id).name = newName;
+      String newLocation = findData(dataline, "location");
+      newLocation.trim();
+      newLocation.toLowerCase();
+      if (id.length() > 0 && isNewValue(getSensorLocation(id), newLocation)) {
+        getSensorData(id).location = newLocation;
         needSave = true;
       }
 
@@ -248,7 +251,7 @@ void handleRequest() {
     }
   }
   // give the web browser time to receive the data
-  delay(1);
+  delay(20);
 }
 
 void loadConfigHtml() {
@@ -282,9 +285,9 @@ void loadConfigFile() {
       } else if (line.indexOf("sensor-") >= 0) {        
         int eq = line.indexOf("=");
         String id = line.substring(sizeof("sensor-")-1, eq);
-        String name = line.substring(eq+1);
-        getSensorData(id).name = name;
-        debug_println("-> Sensor("+id+")='"+name+"'");
+        String location = line.substring(eq+1);
+        getSensorData(id).location = location;
+        debug_println("-> Sensor("+id+")='"+location+"'");
       }
       ++idx;
     }
@@ -323,7 +326,7 @@ void fetchAndSendSensorValues() {
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
     sprintf(dataLine,"%s,location=%s,node=%s,sensor=%s value=%s", 
       sensors[idx].measurand.c_str(), 
-      sensors[idx].name.c_str(), 
+      sensors[idx].location.c_str(), 
       nodeName.c_str(), 
       sensors[idx].type.c_str(), 
       sensors[idx].value.c_str());
@@ -341,7 +344,7 @@ void setup(void) {
   for(uint8_t i=0; i<MAX_SENSORS; ++i) {
     sensors[i].id = "";
     sensors[i].type = "";
-    sensors[i].name = "";
+    sensors[i].location = "";
     sensors[i].measurand = "";
     sensors[i].value = "";
   }

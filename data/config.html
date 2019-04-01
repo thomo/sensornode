@@ -21,17 +21,18 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
 <h2>Node: <span id="node"></span></h2>
 <div class="g">
 <table>
-<thead><tr><th>Sensor Id</th><th>Type</th><th>Measurand</th><th>Name</th><th>Last Value</th></tr></thead>
+<thead><tr><th>Sensor Id</th><th>Type</th><th>Measurand</th><th>Location</th><th>Last Value</th></tr></thead>
 <tbody id="sensor-list"></tbody></table>
 </div>
 <h2>Update config</h2>
 <form id="dlg" action="/" method="post">
   <table>
-    <tr><td colspan=2>Spaces and slashes are not supported!</td></tr>
     <tr><th>Node</th><td><input type=text name=node value=""/></td></tr>
+    <tr><td colspan=2>Spaces and slashes are not supported!</td></tr>
     <tr><td colspan=2><hr/></td></tr>
     <tr><th>Sensor id</th><td><select id="sensor_id" name="id"></select></td></tr>
-    <tr><th>Sensor name</th><td><input id="sensor_name" type=text name="name"/></td></tr>
+    <tr><th>Sensor location</th><td><input id="sensor_location" type=text name="location"/></td></tr>
+    <tr><td colspan=2>Spaces and slashes are not supported, use a dot for hierarchy!<br/>Location will be used as mqtt topic - dots are replaced by slashes.</td></tr>
     <tr><td colspan=2><hr/></td></tr>
     <tr><td colspan=2 style=text-align:right><input type=submit name=action value=update /></td></tr>
   </table>
@@ -50,12 +51,12 @@ $(document).ready(function() {
     }).then(function(data) {
       var s= document.getElementById('sensor_id');
       for (var id in data.sensors) {
-        s.options[s.options.length]= new Option(data.sensors[id].name+" ("+id+")", id);
+        s.options[s.options.length]= new Option(data.sensors[id].location+" ("+id+")", id);
         $('#sensor-list').append("<tr><td>"
           +id+"</td><td>"
           +data.sensors[id].type+"</td><td>"
           +data.sensors[id].measurand+"</td><td>"
-          +data.sensors[id].name+"</td><td>"
+          +data.sensors[id].location+"</td><td>"
           +data.sensors[id].value+"</td></tr>");
       }
     });
