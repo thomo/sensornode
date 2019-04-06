@@ -11,12 +11,16 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-#include "FS.h"
-#include "Ticker.h"
+#include <FS.h>
+#include <Ticker.h>
 
+#include <PubSubClient.h>
 // +++++++++++++++++++
 
 #define DEFAULT_NODE_NAME "F42-NODE"
+#define MQTT_SERVER "mqtt.thomo.de"
+
+#define TOPIC_PREFIX "TMP/"
 
 #define FETCH_SENSORS_CYCLE_SEC 10
 
@@ -47,8 +51,9 @@ DeviceAddress* deviceAddresses = NULL;
 
 WiFiManager wifiManager;
 
-WiFiServer server(80);
-WiFiClient client;
+WiFiServer espServer(80);
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
 
 String configHtml = "";
 String nodeName = DEFAULT_NODE_NAME;
@@ -105,9 +110,9 @@ void printSensorData(String id) {
 
 uint16_t getPayload(char payload[]) {
   uint16_t index=0;
-  while (client.connected() && client.available()) {
-    if (client.available() && index < PAYLOAD_BUFFER_SIZE - 1) {
-      int c = client.read();
+  while (espClient.connected() && espClient.available()) {
+    if (espClient.available() && index < PAYLOAD_BUFFER_SIZE - 1) {
+      int c = espClient.read();
       if (c >= 32) {
         payload[index++] = c;
       } else if (c == '\n') {
@@ -120,11 +125,11 @@ uint16_t getPayload(char payload[]) {
 }
 
 void printKV(String k, String v) {
-  client.print("\"");
-  client.print(k);
-  client.print("\":\"");
-  client.print(v);
-  client.print("\"");
+  espClient.print("\"");
+  espClient.print(k);
+  espClient.print("\":\"");
+  espClient.print(v);
+  espClient.print("\"");
 }
 
 String findData(String line, String key) {
@@ -178,48 +183,48 @@ void handleRequest() {
     String payload(payloadBuffer);
     if (payload.indexOf("GET / HTTP") > -1) {
       // send a standard http response header
-      client.println("HTTP/1.1 200 OK");
-      client.println("Content-Type: text/html");
-      client.println("Connection: close");  // the connection will be closed after completion of the response
-      client.println();
-      client.println(configHtml);
+      espClient.println("HTTP/1.1 200 OK");
+      espClient.println("Content-Type: text/html");
+      espClient.println("Connection: close");  // the connection will be closed after completion of the response
+      espClient.println();
+      espClient.println(configHtml);
     } else if (payload.indexOf("GET /node HTTP") > -1) { 
       // GET /node
-      client.println("HTTP/1.1 200 OK");
-      client.println("Access-Control-Allow-Origin:null");
-      client.println("Content-Type: application/json");
-      client.println("Connection: close");
-      client.println();
-      client.print("{");
+      espClient.println("HTTP/1.1 200 OK");
+      espClient.println("Access-Control-Allow-Origin:null");
+      espClient.println("Content-Type: application/json");
+      espClient.println("Connection: close");
+      espClient.println();
+      espClient.print("{");
       printKV("node", nodeName);
-      client.println("}");
+      espClient.println("}");
     } else if (payload.indexOf("GET /sensors HTTP") > -1) {
       // GET /sensors
-      client.println("HTTP/1.1 200 OK");
-      client.println("Access-Control-Allow-Origin:null");
-      client.println("Content-Type: application/json");
-      client.println("Connection: close");
-      client.println();
-      client.print("{\"sensors\": {");
+      espClient.println("HTTP/1.1 200 OK");
+      espClient.println("Access-Control-Allow-Origin:null");
+      espClient.println("Content-Type: application/json");
+      espClient.println("Connection: close");
+      espClient.println();
+      espClient.print("{\"sensors\": {");
       String sep = "";
       uint8_t idx = 0;
       while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
-        client.print(sep);
-        client.print("\"");
-        client.print(sensors[idx].id); 
-        client.print("\":{");
+        espClient.print(sep);
+        espClient.print("\"");
+        espClient.print(sensors[idx].id); 
+        espClient.print("\":{");
         printKV("location", sensors[idx].location); 
-        client.print(", ");
+        espClient.print(", ");
         printKV("type", sensors[idx].type); 
-        client.print(", ");
+        espClient.print(", ");
         printKV("measurand", sensors[idx].measurand); 
-        client.print(", ");
+        espClient.print(", ");
         printKV("value", sensors[idx].value); 
-        client.print("} ");
+        espClient.print("} ");
         sep = ", ";
         ++idx;
       }
-      client.println("}}");
+      espClient.println("}}");
     } else if (payload.indexOf("POST / HTTP") > -1) {
       debug_println(payload);
       // POST new node name and/or a new sensor location
@@ -247,11 +252,11 @@ void handleRequest() {
       uint16_t sIndex = payload.indexOf("Referer: http://")+16;
       uint16_t eIndex = payload.indexOf("\n", sIndex);
       String ref = payload.substring(sIndex, eIndex);
-      client.println("HTTP/1.1 303 See Other");
-      client.print("Location: http://");
-      client.println(ref);
+      espClient.println("HTTP/1.1 303 See Other");
+      espClient.print("Location: http://");
+      espClient.println(ref);
     } else {
-      client.println("HTTP/1.0 404 Not Found");
+      espClient.println("HTTP/1.0 404 Not Found");
     }
   }
   // give the web browser time to receive the data
@@ -338,14 +343,29 @@ void fetchAndSendSensorValues() {
       sensors[idx].type.c_str(), 
       sensors[idx].value.c_str());
 
+    Serial.print(TOPIC_PREFIX);
     Serial.print(sensors[idx].topic);
     Serial.print(" ");
     Serial.println(dataLine);
     ++idx;
   }
-  // cmd = "mosquitto_pub -h mqtt.thomo.de -m '" + db_line + "' -t f42/ground/bathroom"
+}
 
-  // printSensorData(idbuf);
+void mqttReconnect() {
+  // Loop until we're reconnected
+  while (!mqttClient.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (mqttClient.connect(nodeName.c_str())) {
+      Serial.println("MQTT client connected");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(mqttClient.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
 }
 
 Ticker timer1(fetchAndSendSensorValues, FETCH_SENSORS_CYCLE_SEC * 1000);
@@ -401,20 +421,27 @@ void setup(void) {
   loadConfig();
 
   Serial.println("Run web server for configuration.");
-  server.begin();
+  espServer.begin();
 
+  mqttClient.setServer(MQTT_SERVER, 1883);
+  
   timer1.start();
 }
 
 void loop(void) { 
-  // listen for incoming clients
-  client = server.available();
-  if (client) {
+  // listen for incoming espClients
+  espClient = espServer.available();
+  if (espClient) {
     handleRequest();
 
     // close the connection:
-    client.stop();    
+    espClient.stop();    
   }
+
+  if (!mqttClient.connected()) {
+    mqttReconnect();
+  }
+  mqttClient.loop();
 
   timer1.update();
  }
