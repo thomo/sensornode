@@ -107,7 +107,7 @@ void addr2hex(DeviceAddress da, char hex[17]) {
 
 void addSensor(String id, String type, String measurand) {
   uint8_t idx = 0;
-  while (sensors[idx].id != "" && idx < MAX_SENSORS) {++idx;}
+  while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {++idx;}
   if (idx < MAX_SENSORS) {
     sensors[idx].id = id;
     sensors[idx].type = type;
@@ -129,6 +129,20 @@ SensorData& getSensorData(String id) {
   uint8_t idx = 0;
   while (!sensors[idx].id.equals(id) && idx < MAX_SENSORS) {++idx;}
   return idx < MAX_SENSORS ? sensors[idx] : tmpSensor;
+}
+
+void updateSensorTopic(String id) {
+  getSensorData(id).topic = rootTopic + getSensorData(id).location;
+  getSensorData(id).topic.replace(".", "/");
+  debug_println("-> Sensor("+id+").topic = '"+getSensorData(id).topic+"'");
+}
+
+void updateSensorTopics() {
+  uint8_t idx = 0;
+  while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
+    updateSensorTopic(sensors[idx].id);
+    ++idx;
+  }
 }
 
 void printSensorData(String id) {
@@ -183,6 +197,9 @@ void saveConfig() {
     
     f.println("node=" + nodeName);
     debug_println("<- node='" + nodeName+"'");
+
+    f.println("topic=" + rootTopic);
+    debug_println("<- topic='" + rootTopic+"'");
     
     uint8_t idx = 0;
     while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
@@ -262,8 +279,7 @@ void handlePostRoot() {
       newLocation.toLowerCase();
       if (id.length() > 0 && isNewValue(getSensorLocation(id), newLocation)) {
         getSensorData(id).location = newLocation;
-        newLocation.replace(".", "/");
-        getSensorData(id).topic = newLocation;
+        updateSensorTopic(id);
         needSave = true;
       }
 
@@ -273,7 +289,7 @@ void handlePostRoot() {
       if (newRootTopic.length() > 0) { newRootTopic.concat("/"); }
       if (isNewValue(rootTopic, newRootTopic)) {
         rootTopic = newRootTopic;
-        Serial.println("t: " + newRootTopic);
+        updateSensorTopics();
         needSave = true;
       }
 
@@ -314,21 +330,21 @@ void loadConfigFile() {
       if (line.indexOf("node=") >= 0) {
         nodeName = line.substring(sizeof("node=")-1);
         debug_println("-> node='"+nodeName+"'");
+      } else if (line.indexOf("topic=") >= 0) {
+        rootTopic = line.substring(sizeof("topic=")-1);
+        debug_println("-> topic='"+rootTopic+"'");
       } else if (line.indexOf("sensor-") >= 0) {        
         int eq = line.indexOf("=");
         String id = line.substring(sizeof("sensor-")-1, eq);
         String location = line.substring(eq+1);
         getSensorData(id).location = location;
         debug_println("-> Sensor("+id+")='"+location+"'");
-        location.replace(".", "/");
-        getSensorData(id).topic = location;
-      } else if (line.indexOf("topic=") >= 0) {
-        rootTopic = line.substring(sizeof("topic=")-1);
-        debug_println("-> topic='"+rootTopic+"'");
+        updateSensorTopic(id);
       }
       ++idx;
     }
     f.close();
+
     Serial.println(" - done");
   }
 }
@@ -369,7 +385,7 @@ void fetchAndSendSensorValues() {
       sensors[idx].type.c_str(), 
       sensors[idx].value.c_str());
 
-    Serial.print(rootTopic);
+    // mqttClient.publish(sensors[idx].topic, dataLine);
     Serial.print(sensors[idx].topic);
     Serial.print(" ");
     Serial.println(dataLine);
