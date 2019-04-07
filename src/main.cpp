@@ -20,7 +20,7 @@
 #define DEFAULT_NODE_NAME "F42-NODE"
 #define MQTT_SERVER "mqtt.thomo.de"
 
-#define TOPIC_PREFIX "TMP/"
+#define DEFAULT_ROOT_TOPIC "tmp/"
 
 #define FETCH_SENSORS_CYCLE_SEC 10
 
@@ -30,8 +30,12 @@
 #define CONFIG_FILE "/config.cfg"
 #define MAX_SENSORS 10
 
-//                             " 30 " 
-#define SIZE_JSONK_ID         (1+30+1)
+//                              {"node" : " 20 "}
+#define SIZE_JSON_NODE         (2 +4 +1+1+1+20+2)
+//                              {"topic" : " 20 "}
+#define SIZE_JSON_TOPIC        (3 +5  +1+1+1+20+2)
+//                              " 30 " 
+#define SIZE_JSONK_ID          (1+30+1)
 
 //                              " 8 " : " 30 " 
 #define SIZE_JSONKV_LOCATION   (1+8+1+1+1+30+1)
@@ -80,6 +84,7 @@ PubSubClient mqttClient(espClient);
 
 String configHtml = "";
 String nodeName = DEFAULT_NODE_NAME;
+String rootTopic = DEFAULT_ROOT_TOPIC;
 
 typedef struct SensorData {
   String id;
@@ -203,8 +208,14 @@ void handleGetRoot() {
 }
 
 void handleGetNode() {
-  char buf[31];
-  snprintf(buf, 31, "{\"node\":\"%s\"}", nodeName.c_str());
+  char buf[SIZE_JSON_NODE];
+  snprintf(buf, SIZE_JSON_NODE, "{\"node\":\"%s\"}", nodeName.c_str());
+  espServer.send(200, "application/json", buf);   
+}
+
+void handleGetTopic() {
+  char buf[SIZE_JSON_TOPIC];
+  snprintf(buf, SIZE_JSON_TOPIC, "{\"topic\":\"%s\"}", rootTopic.c_str());
   espServer.send(200, "application/json", buf);   
 }
 
@@ -256,6 +267,16 @@ void handlePostRoot() {
         needSave = true;
       }
 
+      String newRootTopic = findData(content, "topic");
+      newRootTopic.trim();
+      newRootTopic.toLowerCase();
+      if (newRootTopic.length() > 0) { newRootTopic.concat("/"); }
+      if (isNewValue(rootTopic, newRootTopic)) {
+        rootTopic = newRootTopic;
+        Serial.println("t: " + newRootTopic);
+        needSave = true;
+      }
+
       if (needSave) saveConfig();
       
       espServer.sendHeader("Location", "/");
@@ -293,7 +314,6 @@ void loadConfigFile() {
       if (line.indexOf("node=") >= 0) {
         nodeName = line.substring(sizeof("node=")-1);
         debug_println("-> node='"+nodeName+"'");
-      
       } else if (line.indexOf("sensor-") >= 0) {        
         int eq = line.indexOf("=");
         String id = line.substring(sizeof("sensor-")-1, eq);
@@ -302,6 +322,9 @@ void loadConfigFile() {
         debug_println("-> Sensor("+id+")='"+location+"'");
         location.replace(".", "/");
         getSensorData(id).topic = location;
+      } else if (line.indexOf("topic=") >= 0) {
+        rootTopic = line.substring(sizeof("topic=")-1);
+        debug_println("-> topic='"+rootTopic+"'");
       }
       ++idx;
     }
@@ -346,7 +369,7 @@ void fetchAndSendSensorValues() {
       sensors[idx].type.c_str(), 
       sensors[idx].value.c_str());
 
-    Serial.print(TOPIC_PREFIX);
+    Serial.print(rootTopic);
     Serial.print(sensors[idx].topic);
     Serial.print(" ");
     Serial.println(dataLine);
@@ -426,6 +449,7 @@ void setup(void) {
   espServer.on("/", HTTP_GET, handleGetRoot);
   espServer.on("/node", HTTP_GET, handleGetNode);
   espServer.on("/sensors", HTTP_GET, handleGetSensors);
+  espServer.on("/topic", HTTP_GET, handleGetTopic);
 
   espServer.on("/", HTTP_POST, handlePostRoot);
 

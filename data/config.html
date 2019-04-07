@@ -18,7 +18,7 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
 <body>
 <div class=c>
 <h1>Configuration</h1>
-<h2>Node: <span id="node"></span></h2>
+<h2>Node: <span id="node"></span> Topic-Prefix: <span id="topic"></span></h2>
 <div class="g">
 <table>
 <thead><tr><th>Sensor Id</th><th>Type</th><th>Measurand</th><th>Location</th><th>Last Value</th></tr></thead>
@@ -27,11 +27,14 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
 <h2>Update config</h2>
 <form id="dlg" action="/" method="post">
   <table>
-    <tr><th>Node</th><td><input type=text name=node value=""/></td></tr>
+    <tr><th>Node</th><td><input type=text name=node value="" maxlength="20"/></td></tr>
+    <tr><td colspan=2>Spaces and slashes are not supported!</td></tr>
+    <tr><td colspan=2><hr/></td></tr>
+    <tr><th>Topic Prefix</th><td><input type=text name=topic value="" maxlength="20"/></td></tr>
     <tr><td colspan=2>Spaces and slashes are not supported!</td></tr>
     <tr><td colspan=2><hr/></td></tr>
     <tr><th>Sensor id</th><td><select id="sensor_id" name="id"></select></td></tr>
-    <tr><th>Sensor location</th><td><input id="sensor_location" type=text name="location"/></td></tr>
+    <tr><th>Sensor location</th><td><input id="sensor_location" type=text name="location" maxlength="30"/></td></tr>
     <tr><td colspan=2>Spaces and slashes are not supported, use a dot for hierarchy!<br/>Location will be used as mqtt topic - dots are replaced by slashes.</td></tr>
     <tr><td colspan=2><hr/></td></tr>
     <tr><td colspan=2 style=text-align:right><input type=submit name=action value=update /></td></tr>
@@ -45,6 +48,11 @@ $(document).ready(function() {
       url: "http://"+document.location.host+"/node"
     }).then(function(data) {
       $('#node').append(data.node);
+    });
+    $.ajax({
+      url: "http://"+document.location.host+"/topic"
+    }).then(function(data) {
+      $('#topic').append(data.topic);
     });
     $.ajax({
       url: "http://"+document.location.host+"/sensors"
