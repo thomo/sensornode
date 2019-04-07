@@ -30,7 +30,30 @@
 #define CONFIG_FILE "/config.cfg"
 #define MAX_SENSORS 10
 
-#define PAYLOAD_BUFFER_SIZE 1024+20+20+MAX_SENSORS*40 
+//                             " 30 " 
+#define SIZE_JSONK_ID         (1+30+1)
+
+//                              " 8 " : " 30 " 
+#define SIZE_JSONKV_LOCATION   (1+8+1+1+1+30+1)
+
+//                              " 4 " : " 30 " 
+#define SIZE_JSONKV_TYPE       (1+4+1+1+1+30+1)
+
+//                              " 9 " : " 30 " 
+#define SIZE_JSONKV_MEASURAND  (1+9+1+1+1+30+1)
+ 
+//                              " 5 " : " 20 " 
+#define SIZE_JSONKV_VALUE      (1+5+1+1+1+20+1)
+
+//                            "___________"   :{  "____":"____________"   ,  "_____":"______"   ,   "____":"_____________"  ,   "_____":"_______"   }   ,
+#define SIZE_JSON_ONE_SENSOR (SIZE_JSONK_ID + 2 + SIZE_JSONKV_LOCATION + 1 + SIZE_JSONKV_TYPE + 1 + SIZE_JSONKV_MEASURAND + 1 + SIZE_JSONKV_VALUE + 1 + 1)
+
+#define SIZE_JSONV_SENSORS  (SIZE_JSON_ONE_SENSOR * MAX_SENSORS)
+
+//                          { "sensors" : { SIZE_JSONV_SENSORS } }
+#define SIZE_JSON_SENSORS  (1+1+  7  +1+1+1+SIZE_JSONV_SENSORS+1+1)
+
+#define PAYLOAD_BUFFER_SIZE (1024+20+20+MAX_SENSORS*40) 
 
 #define DEBUG 0
 #define debug_print(line) \
@@ -51,7 +74,7 @@ DeviceAddress* deviceAddresses = NULL;
 
 WiFiManager wifiManager;
 
-WiFiServer espServer(80);
+ESP8266WebServer espServer(80);
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
@@ -175,69 +198,55 @@ bool isNewValue(String oldValue, String newValue) {
   return newValue.length() > 0 && !oldValue.equals(newValue);
 }
 
-void handleRequest() {
-  char payloadBuffer[PAYLOAD_BUFFER_SIZE];
-  uint16_t payloadSize = getPayload(payloadBuffer);
+void handleGetRoot() {
+  espServer.send(200, "text/html", configHtml);   
+}
 
-  if (payloadSize > 0) {
-    String payload(payloadBuffer);
-    if (payload.indexOf("GET / HTTP") > -1) {
-      // send a standard http response header
-      espClient.println("HTTP/1.1 200 OK");
-      espClient.println("Content-Type: text/html");
-      espClient.println("Connection: close");  // the connection will be closed after completion of the response
-      espClient.println();
-      espClient.println(configHtml);
-    } else if (payload.indexOf("GET /node HTTP") > -1) { 
-      // GET /node
-      espClient.println("HTTP/1.1 200 OK");
-      espClient.println("Access-Control-Allow-Origin:null");
-      espClient.println("Content-Type: application/json");
-      espClient.println("Connection: close");
-      espClient.println();
-      espClient.print("{");
-      printKV("node", nodeName);
-      espClient.println("}");
-    } else if (payload.indexOf("GET /sensors HTTP") > -1) {
-      // GET /sensors
-      espClient.println("HTTP/1.1 200 OK");
-      espClient.println("Access-Control-Allow-Origin:null");
-      espClient.println("Content-Type: application/json");
-      espClient.println("Connection: close");
-      espClient.println();
-      espClient.print("{\"sensors\": {");
-      String sep = "";
-      uint8_t idx = 0;
-      while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
-        espClient.print(sep);
-        espClient.print("\"");
-        espClient.print(sensors[idx].id); 
-        espClient.print("\":{");
-        printKV("location", sensors[idx].location); 
-        espClient.print(", ");
-        printKV("type", sensors[idx].type); 
-        espClient.print(", ");
-        printKV("measurand", sensors[idx].measurand); 
-        espClient.print(", ");
-        printKV("value", sensors[idx].value); 
-        espClient.print("} ");
-        sep = ", ";
-        ++idx;
-      }
-      espClient.println("}}");
-    } else if (payload.indexOf("POST / HTTP") > -1) {
-      debug_println(payload);
-      // POST new node name and/or a new sensor location
+void handleGetNode() {
+  char buf[31];
+  snprintf(buf, 31, "{\"node\":\"%s\"}", nodeName.c_str());
+  espServer.send(200, "application/json", buf);   
+}
+
+void handleGetSensors() {
+  char buf[SIZE_JSON_SENSORS] = "{\"sensors\":{";
+
+  char sep[2];
+  sep[0]='\0';
+  sep[1]='\0';
+
+  char oneSensorBuf[SIZE_JSON_ONE_SENSOR];
+  uint8_t idx = 0;
+  while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
+    snprintf(oneSensorBuf, SIZE_JSON_ONE_SENSOR, 
+            "%s\"%s\":{\"location\":\"%s\",\"type\":\"%s\",\"measurand\":\"%s\",\"value\":\"%s\"}", 
+            sep, 
+            sensors[idx].id.c_str(), 
+            sensors[idx].location.c_str(), 
+            sensors[idx].type.c_str(), 
+            sensors[idx].measurand.c_str(), 
+            sensors[idx].value.c_str());
+    sep[0]=',';
+    strncat(buf, oneSensorBuf, SIZE_JSON_SENSORS - strlen(buf));
+    ++idx;
+  }
+  strncat(buf, "}}", SIZE_JSON_SENSORS - strlen(buf));
+  espServer.send(200, "application/json", buf);   
+}
+
+// POST new node name and/or a new sensor location
+void handlePostRoot() {
+      String content = espServer.arg("plain");
+      debug_println(content);
       bool needSave = false;
-      String dataline = payload.substring(payload.indexOf("\n\n")+2);
-      String newNodeName = findData(dataline, "node"); 
+      String newNodeName = findData(content, "node"); 
       newNodeName.trim();
       if (isNewValue(nodeName, newNodeName)) {
         nodeName = newNodeName;
         needSave = true;
       }
-      String id = findData(dataline, "id"); 
-      String newLocation = findData(dataline, "location");
+      String id = findData(content, "id"); 
+      String newLocation = findData(content, "location");
       newLocation.trim();
       newLocation.toLowerCase();
       if (id.length() > 0 && isNewValue(getSensorLocation(id), newLocation)) {
@@ -249,18 +258,12 @@ void handleRequest() {
 
       if (needSave) saveConfig();
       
-      uint16_t sIndex = payload.indexOf("Referer: http://")+16;
-      uint16_t eIndex = payload.indexOf("\n", sIndex);
-      String ref = payload.substring(sIndex, eIndex);
-      espClient.println("HTTP/1.1 303 See Other");
-      espClient.print("Location: http://");
-      espClient.println(ref);
-    } else {
-      espClient.println("HTTP/1.0 404 Not Found");
-    }
-  }
-  // give the web browser time to receive the data
-  delay(20);
+      espServer.sendHeader("Location", "/");
+      espServer.send(303);
+}
+
+void handleError() {
+  espServer.send(404, "text/plain", "404: Not found");
 }
 
 void loadConfigHtml() {
@@ -420,6 +423,14 @@ void setup(void) {
 
   loadConfig();
 
+  espServer.on("/", HTTP_GET, handleGetRoot);
+  espServer.on("/node", HTTP_GET, handleGetNode);
+  espServer.on("/sensors", HTTP_GET, handleGetSensors);
+
+  espServer.on("/", HTTP_POST, handlePostRoot);
+
+  espServer.onNotFound(handleError);
+
   Serial.println("Run web server for configuration.");
   espServer.begin();
 
@@ -429,14 +440,7 @@ void setup(void) {
 }
 
 void loop(void) { 
-  // listen for incoming espClients
-  espClient = espServer.available();
-  if (espClient) {
-    handleRequest();
-
-    // close the connection:
-    espClient.stop();    
-  }
+  espServer.handleClient();
 
   if (!mqttClient.connected()) {
     mqttReconnect();
