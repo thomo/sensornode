@@ -385,10 +385,11 @@ void fetchAndSendSensorValues() {
       sensors[idx].type.c_str(), 
       sensors[idx].value.c_str());
 
-    // mqttClient.publish(sensors[idx].topic, dataLine);
-    Serial.print(sensors[idx].topic);
-    Serial.print(" ");
-    Serial.println(dataLine);
+    mqttClient.publish(sensors[idx].topic.c_str(), dataLine);
+    debug_print(sensors[idx].topic);
+    debug_print(" ");
+    debug_println(dataLine);
+      
     ++idx;
   }
 }
