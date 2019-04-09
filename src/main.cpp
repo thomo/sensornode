@@ -11,20 +11,27 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
+#include <Adafruit_BME280.h>
+
 #include <FS.h>
 #include <Ticker.h>
 
 #include <PubSubClient.h>
+
 // +++++++++++++++++++
 
 #define DEFAULT_NODE_NAME "F42-NODE"
 #define MQTT_SERVER "mqtt.thomo.de"
 
+#define ALTITUDE 282.0F
+
 #define DEFAULT_ROOT_TOPIC "tmp/"
 
 #define FETCH_SENSORS_CYCLE_SEC 10
 
-#define ONE_WIRE_BUS 4
+#define ONE_WIRE_PIN 2
+#define I2C_SDA_PIN  4
+#define I2C_SCL_PIN  5
 
 #define CONFIG_HTML "/config.html"
 #define CONFIG_FILE "/config.cfg"
@@ -49,7 +56,7 @@
 //                              " 5 " : " 20 " 
 #define SIZE_JSONKV_VALUE      (1+5+1+1+1+20+1)
 
-//                            "___________"   :{  "____":"____________"   ,  "_____":"______"   ,   "____":"_____________"  ,   "_____":"_______"   }   ,
+//                            "___________"   :{  "____":"____________"  ,   "_____":"______"   ,   "____":"_____________"  ,   "_____":"_______"   }   ,
 #define SIZE_JSON_ONE_SENSOR (SIZE_JSONK_ID + 2 + SIZE_JSONKV_LOCATION + 1 + SIZE_JSONKV_TYPE + 1 + SIZE_JSONKV_MEASURAND + 1 + SIZE_JSONKV_VALUE + 1 + 1)
 
 #define SIZE_JSONV_SENSORS  (SIZE_JSON_ONE_SENSOR * MAX_SENSORS)
@@ -66,12 +73,14 @@
             do { if (DEBUG) Serial.println(line); } while (0)
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
-OneWire oneWire(ONE_WIRE_BUS);
+OneWire oneWire(ONE_WIRE_PIN);
 
 // Pass our oneWire reference to Dallas Temperature. 
 DallasTemperature dsSensors(&oneWire);
-
 uint8_t deviceCount = 0;
+
+String bmeAddr = "";
+Adafruit_BME280 bme; // I2C
 
 // to hold device addresses
 DeviceAddress* deviceAddresses = NULL;
@@ -371,7 +380,12 @@ void fetchAndSendSensorValues() {
     addr2hex(deviceAddresses[i], idbuf);
     getSensorData(idbuf).value = String(tempC, 2);
   }
-  
+
+  if (bmeAddr.length() > 0) {
+    getSensorData(bmeAddr+"h").value = String(bme.readHumidity());
+    getSensorData(bmeAddr+"p").value = String(bme.seaLevelForAltitude(ALTITUDE, bme.readPressure()));
+  }
+
   // measurand + location + node + sensor + value + fix + null
   // 20 + 30 + 30 + 20 + 20 + ",location=,node=,sensor= value=" + 1 => 100 + 23 + 1 = 144
   char dataLine[144]; 
@@ -459,6 +473,21 @@ void setup(void) {
       addr2hex(deviceAddresses[i], hexbuf);
       addSensor(hexbuf, "DS18B20", "temperature");
     }
+  }
+
+  Wire.begin(I2C_SDA_PIN,I2C_SCL_PIN);
+  if (bme.begin(0x76)) {  
+    bmeAddr = "76";
+  } else if (bme.begin(0x77)) {
+    bmeAddr = "77";
+  } else {
+    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+  }
+
+  if (bmeAddr.length() > 0) {
+    Serial.println("Found BME280 sensor on 0x" + bmeAddr);
+    addSensor(bmeAddr+"h", "BME280", "humidity");
+    addSensor(bmeAddr+"p", "BME280", "pressure");
   }
 
   loadConfig();
