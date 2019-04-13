@@ -44,20 +44,18 @@
 //                              " 30 " 
 #define SIZE_JSONK_ID          (1+30+1)
 
+//                              " 7 " : x
+#define SIZE_JSONKV_ENABLED    (1+7+1+1+1)
 //                              " 8 " : " 30 " 
 #define SIZE_JSONKV_LOCATION   (1+8+1+1+1+30+1)
-
 //                              " 4 " : " 30 " 
 #define SIZE_JSONKV_TYPE       (1+4+1+1+1+30+1)
-
 //                              " 9 " : " 30 " 
 #define SIZE_JSONKV_MEASURAND  (1+9+1+1+1+30+1)
- 
 //                              " 5 " : " 20 " 
 #define SIZE_JSONKV_VALUE      (1+5+1+1+1+20+1)
-
-//                            "___________"   :{  "____":"____________"  ,   "_____":"______"   ,   "____":"_____________"  ,   "_____":"_______"   }   ,
-#define SIZE_JSON_ONE_SENSOR (SIZE_JSONK_ID + 2 + SIZE_JSONKV_LOCATION + 1 + SIZE_JSONKV_TYPE + 1 + SIZE_JSONKV_MEASURAND + 1 + SIZE_JSONKV_VALUE + 1 + 1)
+//                            "___________"   :{  "______________": x   ,   "____":"___________"   ,   "_____":"______"   ,   "____":"_____________"  ,   "_____":"_______"   }   ,
+#define SIZE_JSON_ONE_SENSOR (SIZE_JSONK_ID + 2 + SIZE_JSONKV_ENABLED + 1 + SIZE_JSONKV_LOCATION + 1 + SIZE_JSONKV_TYPE + 1 + SIZE_JSONKV_MEASURAND + 1 + SIZE_JSONKV_VALUE + 1 + 1)
 
 #define SIZE_JSONV_SENSORS  (SIZE_JSON_ONE_SENSOR * MAX_SENSORS)
 
@@ -96,6 +94,7 @@ String nodeName = DEFAULT_NODE_NAME;
 String rootTopic = DEFAULT_ROOT_TOPIC;
 
 typedef struct SensorData {
+  bool enabled;
   String id;
   String type;
   String location;
@@ -104,7 +103,7 @@ typedef struct SensorData {
   String value;
 } SensorData;
 
-SensorData tmpSensor = {"", "", "", "", "", "?"};
+SensorData tmpSensor = {false, "", "", "", "", "", "?"};
 
 SensorData sensors[MAX_SENSORS]; 
 
@@ -118,6 +117,7 @@ void addSensor(String id, String type, String measurand) {
   uint8_t idx = 0;
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {++idx;}
   if (idx < MAX_SENSORS) {
+    sensors[idx].enabled = false;
     sensors[idx].id = id;
     sensors[idx].type = type;
     sensors[idx].location = id;
@@ -213,7 +213,9 @@ void saveConfig() {
     uint8_t idx = 0;
     while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
       f.println("sensor-" + sensors[idx].id + "=" + sensors[idx].location);
-      debug_println("<- Sensor(" + sensors[idx].id + ")='" + sensors[idx].location+"'");
+      debug_println("<- Sensor(" + sensors[idx].id + ").location='" + sensors[idx].location+"'");
+      f.println("sensor-enabled-" + sensors[idx].id + "=" + sensors[idx].enabled);
+      debug_println("<- Sensor(" + sensors[idx].id + ").enabled=" + sensors[idx].enabled);
       ++idx;
     }
     
@@ -256,9 +258,10 @@ void handleGetSensors() {
   uint8_t idx = 0;
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
     snprintf(oneSensorBuf, SIZE_JSON_ONE_SENSOR, 
-            "%s\"%s\":{\"location\":\"%s\",\"type\":\"%s\",\"measurand\":\"%s\",\"value\":\"%s\"}", 
+            "%s\"%s\":{\"enabled\":%d,\"location\":\"%s\",\"type\":\"%s\",\"measurand\":\"%s\",\"value\":\"%s\"}", 
             sep, 
             sensors[idx].id.c_str(), 
+            sensors[idx].enabled, 
             sensors[idx].location.c_str(), 
             sensors[idx].type.c_str(), 
             sensors[idx].measurand.c_str(), 
@@ -341,14 +344,20 @@ void loadConfigFile() {
         debug_println("-> node='"+nodeName+"'");
       } else if (line.indexOf("topic=") >= 0) {
         rootTopic = line.substring(sizeof("topic=")-1);
-        debug_println("-> topic='"+rootTopic+"'");
+        debug_println("-> rootTopic='"+rootTopic+"'");
       } else if (line.indexOf("sensor-") >= 0) {        
         int eq = line.indexOf("=");
         String id = line.substring(sizeof("sensor-")-1, eq);
         String location = line.substring(eq+1);
         getSensorData(id).location = location;
-        debug_println("-> Sensor("+id+")='"+location+"'");
+        debug_println("-> Sensor("+id+").location='"+location+"'");
         updateSensorTopic(id);
+      } else if (line.indexOf("sensor-enabled-") >= 0) {        
+        int eq = line.indexOf("=");
+        String id = line.substring(sizeof("sensor-enabled-")-1, eq);
+        String enabled = line.substring(eq+1);
+        getSensorData(id).enabled = enabled.toInt();
+        debug_println("-> Sensor("+id+").enabled='"+enabled+"'");
       }
       ++idx;
     }
