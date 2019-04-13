@@ -6,39 +6,40 @@
 body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helvetica,sans-serif}
 .g{background:#fff;overflow:hidden;border:1px solid #069;-webkit-border-radius:8px;-moz-border-radius:8px;border-radius:8px}
 .g table{border-collapse:collapse;text-align:left;width:100%}
+.g table tr{height: unset;}
 .g table td,.g table th{padding:3px 10px}
-.g table thead th{background-color:#069;color:#fff;font-size:15px;border-left:1px solid #0070a8}
-.g table tbody td{color:#00496b;border-left:1px solid #e1eef4;font-size:12px;font-weight:normal}
-.g table tfoot td{padding:0;font-size:12px}
+.g table thead th{background-color:#069;color:#fff;border-left:1px solid #0070a8}
+.g table tbody td{color:#00496b;border-left:1px solid #e1eef4;font-weight:normal}
+.g table tfoot td{padding:0;}
 .c{display:inline-block;border-radius:2em;padding:2em;background-color:#a6b3be;border:2px solid #0e304a}
 .c table{margin:0 auto}
+.c tr{height: 30px}
 .c th,.c td{text-align:left}
+.c .note{font-style: italic}
+.c .lastrow{margin: 5px 0px; text-align: right}
 </style>
 </head>
 <body>
 <div class=c>
 <h1>Configuration</h1>
-<h2>Node: <span id="node"></span> Topic-Prefix: <span id="topic"></span></h2>
-<div class="g">
-<table>
-<thead><tr><th>Sensor Id</th><th>Type</th><th>Measurand</th><th>Location</th><th>Last Value</th></tr></thead>
-<tbody id="sensor-list"></tbody></table>
-</div>
-<h2>Update config</h2>
 <form id="dlg" action="/" method="post">
   <table>
-    <tr><th>Node</th><td><input type=text name=node value="" maxlength="20"/></td></tr>
-    <tr><td colspan=2>Spaces and slashes are not supported!</td></tr>
-    <tr><td colspan=2><hr/></td></tr>
-    <tr><th>Topic Prefix</th><td><input type=text name=topic value="" maxlength="20"/></td></tr>
-    <tr><td colspan=2>Spaces and slashes are not supported!</td></tr>
-    <tr><td colspan=2><hr/></td></tr>
-    <tr><th>Sensor id</th><td><select id="sensor_id" name="id"></select></td></tr>
-    <tr><th>Sensor location</th><td><input id="sensor_location" type=text name="location" maxlength="30"/></td></tr>
-    <tr><td colspan=2>Spaces and slashes are not supported, use a dot for hierarchy!<br/>Location will be used as mqtt topic - dots are replaced by slashes.</td></tr>
-    <tr><td colspan=2><hr/></td></tr>
-    <tr><td colspan=2 style=text-align:right><input type=submit name=action value=update /></td></tr>
+    <tr><th>Node</th><td><input id="node" type=text name="node" value="" size="20" maxlength="20"/></td><td class="note">Spaces and slashes are not supported!</td></tr>
+    <tr><th>Topic Prefix</th><td><input id="topic" type=text name="topic" value="" size="20" maxlength="20"/></td><td class="note">Spaces and slashes are not supported, use a dot for hierarchy!!</td></tr>
   </table>
+	<div class="g">
+	<table>
+		<thead><tr><th>Active</th><th>Sensor Id</th><th>Type</th><th>Location</th><th>Measurand</th><th>Last Value</th></tr></thead>
+		<tbody id="sensor-list">
+    </tbody>
+    <tfoot>
+        <tr>
+        <td class="note" colspan="6">Spaces and slashes are not supported, use a dot for hierarchy!<br/>Topic prefix + location will be used as mqtt topic - dots are replaced by slashes.</td>
+        </tr>
+    </tfoot>
+	</table>
+	</div>
+	<div class="lastrow"><input type=submit name=action value=update /></div>
 </form>
 </div>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
@@ -47,25 +48,24 @@ $(document).ready(function() {
     $.ajax({
       url: "http://"+document.location.host+"/node"
     }).then(function(data) {
-      $('#node').append(data.node);
+      $('#node').val(data.node);
     });
     $.ajax({
       url: "http://"+document.location.host+"/topic"
     }).then(function(data) {
-      $('#topic').append(data.topic);
+      $('#topic').val(data.topic);
     });
     $.ajax({
       url: "http://"+document.location.host+"/sensors"
     }).then(function(data) {
-      var s= document.getElementById('sensor_id');
       for (var id in data.sensors) {
-        s.options[s.options.length]= new Option(data.sensors[id].location+" ("+id+")", id);
-        $('#sensor-list').append("<tr><td>"
-          +id+"</td><td>"
-          +data.sensors[id].type+"</td><td>"
-          +data.sensors[id].measurand+"</td><td>"
-          +data.sensors[id].location+"</td><td>"
-          +data.sensors[id].value+"</td></tr>");
+        $('#sensor-list').append("<tr>"
+          +"<td><input type='checkbox' name='en-"+id+"'/></td>"
+          +"<td>"+id+"</td>"
+          +"<td>"+data.sensors[id].type+"</td>"
+          +"<td><input name='loc-"+id+"' size='30' maxlength='30' value='"+data.sensors[id].location+"'/></td>"
+          +"<td>"+data.sensors[id].measurand+"</td>"
+          +"<td>"+data.sensors[id].value+"</td></tr>");
       }
     });
 });

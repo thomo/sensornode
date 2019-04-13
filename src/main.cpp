@@ -25,7 +25,7 @@
 
 #define ALTITUDE 282.0F
 
-#define DEFAULT_ROOT_TOPIC "tmp/"
+#define DEFAULT_ROOT_TOPIC "tmp"
 
 #define FETCH_SENSORS_CYCLE_SEC 10
 
@@ -64,11 +64,11 @@
 
 #define PAYLOAD_BUFFER_SIZE (1024+20+20+MAX_SENSORS*40) 
 
-#define DEBUG 0
+#define MYDEBUG 1
 #define debug_print(line) \
-            do { if (DEBUG) Serial.print(line); } while (0)
+            do { if (MYDEBUG) Serial.print(line); } while (0)
 #define debug_println(line) \
-            do { if (DEBUG) Serial.println(line); } while (0)
+            do { if (MYDEBUG) Serial.println(line); } while (0)
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_PIN);
@@ -141,7 +141,7 @@ SensorData& getSensorData(String id) {
 }
 
 void updateSensorTopic(String id) {
-  getSensorData(id).topic = rootTopic + getSensorData(id).location;
+  getSensorData(id).topic = rootTopic + "." + getSensorData(id).location;
   getSensorData(id).topic.replace(".", "/");
   debug_println("-> Sensor("+id+").topic = '"+getSensorData(id).topic+"'");
 }
@@ -214,7 +214,7 @@ void saveConfig() {
     while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
       f.println("sensor-" + sensors[idx].id + "=" + sensors[idx].location);
       debug_println("<- Sensor(" + sensors[idx].id + ").location='" + sensors[idx].location+"'");
-      f.println("sensor-enabled-" + sensors[idx].id + "=" + sensors[idx].enabled);
+      f.println("sensor.enabled-" + sensors[idx].id + "=" + sensors[idx].enabled);
       debug_println("<- Sensor(" + sensors[idx].id + ").enabled=" + sensors[idx].enabled);
       ++idx;
     }
@@ -277,7 +277,7 @@ void handleGetSensors() {
 // POST new node name and/or a new sensor location
 void handlePostRoot() {
       String content = espServer.arg("plain");
-      debug_println(content);
+      debug_println("Request content: " + content);
       bool needSave = false;
       String newNodeName = findData(content, "node"); 
       newNodeName.trim();
@@ -298,7 +298,6 @@ void handlePostRoot() {
       String newRootTopic = findData(content, "topic");
       newRootTopic.trim();
       newRootTopic.toLowerCase();
-      if (newRootTopic.length() > 0) { newRootTopic.concat("/"); }
       if (isNewValue(rootTopic, newRootTopic)) {
         rootTopic = newRootTopic;
         updateSensorTopics();
@@ -345,6 +344,13 @@ void loadConfigFile() {
       } else if (line.indexOf("topic=") >= 0) {
         rootTopic = line.substring(sizeof("topic=")-1);
         debug_println("-> rootTopic='"+rootTopic+"'");
+        updateSensorTopics();
+      } else if (line.indexOf("sensor.enabled-") >= 0) {        
+        int eq = line.indexOf("=");
+        String id = line.substring(sizeof("sensor.enabled-")-1, eq);
+        String enabled = line.substring(eq+1);
+        getSensorData(id).enabled = enabled.toInt();
+        debug_println("-> Sensor("+id+").enabled='"+enabled+"'");
       } else if (line.indexOf("sensor-") >= 0) {        
         int eq = line.indexOf("=");
         String id = line.substring(sizeof("sensor-")-1, eq);
@@ -352,14 +358,9 @@ void loadConfigFile() {
         getSensorData(id).location = location;
         debug_println("-> Sensor("+id+").location='"+location+"'");
         updateSensorTopic(id);
-      } else if (line.indexOf("sensor-enabled-") >= 0) {        
-        int eq = line.indexOf("=");
-        String id = line.substring(sizeof("sensor-enabled-")-1, eq);
-        String enabled = line.substring(eq+1);
-        getSensorData(id).enabled = enabled.toInt();
-        debug_println("-> Sensor("+id+").enabled='"+enabled+"'");
       }
       ++idx;
+      debug_println("-----------------------------------------------");
     }
     f.close();
 
@@ -409,8 +410,7 @@ void fetchAndSendSensorValues() {
       sensors[idx].value.c_str());
 
     mqttClient.publish(sensors[idx].topic.c_str(), dataLine);
-    debug_print(sensors[idx].topic);
-    debug_print(" ");
+    debug_print("MQTT: " + sensors[idx].topic + " ");
     debug_println(dataLine);
       
     ++idx;
@@ -434,10 +434,53 @@ void mqttReconnect() {
   }
 }
 
+void setupOneWireSensors() {
+  // Start up the library
+  dsSensors.begin();
+  deviceCount = dsSensors.getDeviceCount();
+
+  // locate devices on the bus
+  Serial.print("Found ");
+  Serial.print(deviceCount);
+  Serial.println(" OneWire devices.");
+
+  deviceAddresses = (DeviceAddress*) calloc(deviceCount, sizeof(DeviceAddress));
+
+  // search for devices on the bus and assign based on an index.
+  for (uint8_t i = 0; i < deviceCount; ++i) {
+    if (!dsSensors.getAddress(deviceAddresses[i], i)) {
+      Serial.print("Unable to find address for Device "); 
+      Serial.print(i, DEC);
+    } else {
+      char hexbuf[17];
+      addr2hex(deviceAddresses[i], hexbuf);
+      addSensor(hexbuf, "DS18B20", "temperature");
+    }
+  }
+}
+
+void setupI2CSensors() {
+  Wire.begin(I2C_SDA_PIN,I2C_SCL_PIN);
+  if (bme.begin(0x76)) {  
+    bmeAddr = "76";
+  } else if (bme.begin(0x77)) {
+    bmeAddr = "77";
+  } else {
+    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+  }
+
+  if (bmeAddr.length() > 0) {
+    Serial.println("Found BME280 sensor on 0x" + bmeAddr);
+    addSensor(bmeAddr+"h", "BME280", "humidity");
+    addSensor(bmeAddr+"p", "BME280", "pressure");
+  }
+}
+
 Ticker timer1(fetchAndSendSensorValues, FETCH_SENSORS_CYCLE_SEC * 1000);
 
 void setup(void) {
   for(uint8_t i=0; i<MAX_SENSORS; ++i) {
+    sensors[i].enabled = false;
     sensors[i].id = "";
     sensors[i].type = "";
     sensors[i].location = "";
@@ -461,43 +504,8 @@ void setup(void) {
   IPAddress myAddress = WiFi.localIP();
   Serial.println(myAddress);
 
-  // Start up the library
-  dsSensors.begin();
-  deviceCount = dsSensors.getDeviceCount();
-
-  // locate devices on the bus
-  debug_print("Found ");
-  debug_print(deviceCount);
-  debug_println(" devices.");
-
-  deviceAddresses = (DeviceAddress*) calloc(deviceCount, sizeof(DeviceAddress));
-
-  // search for devices on the bus and assign based on an index.
-  for (uint8_t i = 0; i < deviceCount; ++i) {
-    if (!dsSensors.getAddress(deviceAddresses[i], i)) {
-      Serial.print("Unable to find address for Device "); 
-      Serial.print(i, DEC);
-    } else {
-      char hexbuf[17];
-      addr2hex(deviceAddresses[i], hexbuf);
-      addSensor(hexbuf, "DS18B20", "temperature");
-    }
-  }
-
-  Wire.begin(I2C_SDA_PIN,I2C_SCL_PIN);
-  if (bme.begin(0x76)) {  
-    bmeAddr = "76";
-  } else if (bme.begin(0x77)) {
-    bmeAddr = "77";
-  } else {
-    Serial.println("Could not find a valid BME280 sensor, check wiring!");
-  }
-
-  if (bmeAddr.length() > 0) {
-    Serial.println("Found BME280 sensor on 0x" + bmeAddr);
-    addSensor(bmeAddr+"h", "BME280", "humidity");
-    addSensor(bmeAddr+"p", "BME280", "pressure");
-  }
+  setupOneWireSensors();
+  setupI2CSensors();
 
   loadConfig();
 
