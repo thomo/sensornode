@@ -64,7 +64,7 @@
 
 #define PAYLOAD_BUFFER_SIZE (1024+20+20+MAX_SENSORS*40) 
 
-#define MYDEBUG 1
+#define MYDEBUG 0
 #define debug_print(line) \
             do { if (MYDEBUG) Serial.print(line); } while (0)
 #define debug_println(line) \
@@ -184,13 +184,21 @@ void printKV(String k, String v) {
 }
 
 String findData(String line, String key) {
-  int sIndex = line.indexOf(key+"=") + key.length() + 1;
+  int sIndex = line.indexOf(key+"=");
+  if (sIndex < 0) return "";
+  sIndex += (key.length() + 1);
+
+  String result;
   int eIndex = line.indexOf("&", sIndex);
   if (eIndex > 0) {
-    return line.substring(sIndex, eIndex);
+    result = line.substring(sIndex, eIndex);
   } else {
-    return line.substring(sIndex);
+    result = line.substring(sIndex);
   }
+  
+  result.trim();
+  result.toLowerCase();
+  return result;
 } 
 
 void saveConfig() {
@@ -277,31 +285,39 @@ void handleGetSensors() {
 // POST new node name and/or a new sensor location
 void handlePostRoot() {
       String content = espServer.arg("plain");
-      debug_println("Request content: " + content);
+      debug_println("Request content: '" + content + "'");
+
       bool needSave = false;
-      String newNodeName = findData(content, "node"); 
-      newNodeName.trim();
-      if (isNewValue(nodeName, newNodeName)) {
-        nodeName = newNodeName;
-        needSave = true;
-      }
-      String id = findData(content, "id"); 
-      String newLocation = findData(content, "location");
-      newLocation.trim();
-      newLocation.toLowerCase();
-      if (id.length() > 0 && isNewValue(getSensorLocation(id), newLocation)) {
-        getSensorData(id).location = newLocation;
-        updateSensorTopic(id);
+      String newValue;
+
+      newValue = findData(content, "node"); 
+      if (isNewValue(nodeName, newValue)) {
+        nodeName = newValue;
         needSave = true;
       }
 
-      String newRootTopic = findData(content, "topic");
-      newRootTopic.trim();
-      newRootTopic.toLowerCase();
-      if (isNewValue(rootTopic, newRootTopic)) {
-        rootTopic = newRootTopic;
+      newValue = findData(content, "topic");
+      if (isNewValue(rootTopic, newValue)) {
+        rootTopic = newValue;
         updateSensorTopics();
         needSave = true;
+      }
+
+      uint8_t idx = 0;
+      while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
+        String key = "loc-" + sensors[idx].id;
+        newValue = findData(content, key);
+        if (isNewValue(sensors[idx].location, newValue)) {
+          sensors[idx].location = newValue;
+          updateSensorTopic(sensors[idx].id);
+          needSave = true;
+        }
+        key = "en-" + sensors[idx].id;
+        newValue = findData(content, key);
+        bool newEnabled = newValue.equals("on");
+        needSave = needSave || (sensors[idx].enabled == newEnabled);
+        sensors[idx].enabled = newEnabled;
+        ++idx;
       }
 
       if (needSave) saveConfig();
@@ -350,7 +366,7 @@ void loadConfigFile() {
         String id = line.substring(sizeof("sensor.enabled-")-1, eq);
         String enabled = line.substring(eq+1);
         getSensorData(id).enabled = enabled.toInt();
-        debug_println("-> Sensor("+id+").enabled='"+enabled+"'");
+        debug_println("-> Sensor("+id+").enabled="+enabled);
       } else if (line.indexOf("sensor-") >= 0) {        
         int eq = line.indexOf("=");
         String id = line.substring(sizeof("sensor-")-1, eq);
@@ -364,7 +380,7 @@ void loadConfigFile() {
     }
     f.close();
 
-    Serial.println(" - done");
+    Serial.println(" done");
   }
 }
 
@@ -402,17 +418,19 @@ void fetchAndSendSensorValues() {
 
   uint8_t idx = 0;
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
-    sprintf(dataLine,"%s,location=%s,node=%s,sensor=%s value=%s", 
-      sensors[idx].measurand.c_str(), 
-      sensors[idx].location.c_str(), 
-      nodeName.c_str(), 
-      sensors[idx].type.c_str(), 
-      sensors[idx].value.c_str());
+    if (sensors[idx].enabled) {
+      sprintf(dataLine,"%s,location=%s,node=%s,sensor=%s value=%s", 
+        sensors[idx].measurand.c_str(), 
+        sensors[idx].location.c_str(), 
+        nodeName.c_str(), 
+        sensors[idx].type.c_str(), 
+        sensors[idx].value.c_str());
 
-    mqttClient.publish(sensors[idx].topic.c_str(), dataLine);
-    debug_print("MQTT: " + sensors[idx].topic + " ");
-    debug_println(dataLine);
-      
+      mqttClient.publish(sensors[idx].topic.c_str(), dataLine);
+      debug_print("MQTT: " + sensors[idx].topic + " ");
+      debug_println(dataLine);
+    }
+
     ++idx;
   }
 }

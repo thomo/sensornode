@@ -6,17 +6,17 @@
 body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helvetica,sans-serif}
 .g{background:#fff;overflow:hidden;border:1px solid #069;-webkit-border-radius:8px;-moz-border-radius:8px;border-radius:8px}
 .g table{border-collapse:collapse;text-align:left;width:100%}
-.g table tr{height: unset;}
+.g table tr{height:unset;}
 .g table td,.g table th{padding:3px 10px}
 .g table thead th{background-color:#069;color:#fff;border-left:1px solid #0070a8}
 .g table tbody td{color:#00496b;border-left:1px solid #e1eef4;font-weight:normal}
-.g table tfoot td{padding:0;}
+.g table tfoot td{padding:5px 10px;text-align: center;background-color: lightgray;}
 .c{display:inline-block;border-radius:2em;padding:2em;background-color:#a6b3be;border:2px solid #0e304a}
 .c table{margin:0 auto}
-.c tr{height: 30px}
+.c tr{height:30px}
 .c th,.c td{text-align:left}
-.c .note{font-style: italic}
-.c .lastrow{margin: 5px 0px; text-align: right}
+.c .note{font-style:italic}
+.c .lastrow{margin:5px 15px;text-align:right}
 </style>
 </head>
 <body>
@@ -60,7 +60,7 @@ $(document).ready(function() {
     }).then(function(data) {
       for (var id in data.sensors) {
         $('#sensor-list').append("<tr>"
-          +"<td><input type='checkbox' name='en-"+id+"'/></td>"
+          +"<td><input type='checkbox' name='en-"+id+"' " + (data.sensors[id].enabled == 1 ? "checked" : "") + " /></td>"
           +"<td>"+id+"</td>"
           +"<td>"+data.sensors[id].type+"</td>"
           +"<td><input name='loc-"+id+"' size='30' maxlength='30' value='"+data.sensors[id].location+"'/></td>"
