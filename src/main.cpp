@@ -221,7 +221,7 @@ void saveConfig() {
   if (!f) {
     Serial.println("File '"+String(CONFIG_FILE)+"' open to write failed");
   } else {
-    Serial.print("Save config file ...");
+    Serial.print("Save config file ... ");
     debug_println("");
 
     String line = "node=" + nodeName;
@@ -247,7 +247,7 @@ void saveConfig() {
     
     f.close();
 
-    Serial.println(" done");
+    Serial.println("done.");
   }
 
   SPIFFS.end();
@@ -365,7 +365,7 @@ void loadConfigFile() {
   if (!f) {
     Serial.println("File '"+String(CONFIG_FILE)+"' not found/open failed - use default values");
   } else {
-    Serial.print("Load config file ...");
+    Serial.print("Load config file ... ");
     debug_println("");
     uint8_t idx = 0;
     while(f.available() && idx < MAX_SENSORS) {
@@ -400,7 +400,7 @@ void loadConfigFile() {
     }
     f.close();
 
-    Serial.println(" done");
+    Serial.println("done.");
   }
 }
 
@@ -456,6 +456,7 @@ void fetchAndSendSensorValues() {
       mqttClient.publish(sensors[idx].topic.c_str(), dataLine);
       debug_print("MQTT: " + sensors[idx].topic + " ");
       debug_println(dataLine);
+      Serial.print(".");
     }
 
     ++idx;
@@ -465,14 +466,14 @@ void fetchAndSendSensorValues() {
 void mqttReconnect() {
   // Loop until we're reconnected
   while (!mqttClient.connected()) {
-    Serial.print("Attempting MQTT connection...");
+    Serial.print("Attempting MQTT connection ... ");
     // Attempt to connect
     if (mqttClient.connect(nodeName.c_str())) {
-      Serial.println("MQTT client connected");
+      Serial.println("success.");
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
-      Serial.println(" try again in 5 seconds");
+      Serial.println(". Try again in 5 seconds.");
       // Wait 5 seconds before retrying
       delay(5000);
     }
@@ -566,6 +567,7 @@ void setup(void) {
   } 
 
   IPAddress myAddress = WiFi.localIP();
+  Serial.print("done. IP: ");
   Serial.println(myAddress);
 
   setupOneWireSensors();
