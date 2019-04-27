@@ -65,7 +65,7 @@
 
 #define PAYLOAD_BUFFER_SIZE (1024+20+20+MAX_SENSORS*40) 
 
-#define MYDEBUG 1
+#define MYDEBUG 0
 #define debug_print(line) \
             do { if (MYDEBUG) Serial.print(line); } while (0)
 #define debug_println(line) \
@@ -117,6 +117,12 @@ void addr2hex(DeviceAddress da, char hex[17]) {
   snprintf(hex, 17, "%02X%02X%02X%02X%02X%02X%02X%02X", da[0], da[1], da[2], da[3], da[4], da[5], da[6], da[7]);
 }
 
+uint8_t numberOfSensors() {
+  uint8_t idx = 0;
+  while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {++idx;}
+  return idx;
+}
+
 void addSensor(String id, String type, String measurand) {
   uint8_t idx = 0;
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {++idx;}
@@ -152,7 +158,7 @@ void updateSensorTopic(String id) {
 
 void updateSensorTopics() {
   uint8_t idx = 0;
-  Serial.println("Update sensor topics with rootTopic: " + rootTopic);
+  debug_println("Update sensor topics with rootTopic: " + rootTopic);
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
     updateSensorTopic(sensors[idx].id);
     ++idx;
@@ -380,6 +386,7 @@ void loadConfigFile() {
         String enabled = line.substring(eq+1);
         getSensorData(id).enabled = enabled.toInt();
         debug_println("-> Sensor("+id+").enabled="+enabled);
+        idx = numberOfSensors();
       } else if (line.indexOf("sensor-") >= 0) {        
         int eq = line.indexOf("=");
         String id = line.substring(sizeof("sensor-")-1, eq);
@@ -387,9 +394,9 @@ void loadConfigFile() {
         getSensorData(id).location = location;
         debug_println("-> Sensor("+id+").location='"+location+"'");
         updateSensorTopic(id);
+        idx = numberOfSensors();
       }
-      ++idx;
-      debug_println("-----------------------------------------------");
+      debug_println("-- #Sensors: " + String(idx) + " ----------------------------------");
     }
     f.close();
 
