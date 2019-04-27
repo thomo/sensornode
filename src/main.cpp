@@ -12,6 +12,7 @@
 #include <DallasTemperature.h>
 
 #include <Adafruit_BME280.h>
+#include <Adafruit_Si7021.h>
 
 #include <FS.h>
 #include <Ticker.h>
@@ -29,9 +30,9 @@
 
 #define FETCH_SENSORS_CYCLE_SEC 10
 
-#define ONE_WIRE_PIN 2
-#define I2C_SDA_PIN  4
-#define I2C_SCL_PIN  5
+#define ONE_WIRE_PIN 13
+#define I2C_SDA_PIN  14
+#define I2C_SCL_PIN  12
 
 #define CONFIG_HTML "/config.html"
 #define CONFIG_FILE "/config.cfg"
@@ -64,7 +65,7 @@
 
 #define PAYLOAD_BUFFER_SIZE (1024+20+20+MAX_SENSORS*40) 
 
-#define MYDEBUG 0
+#define MYDEBUG 1
 #define debug_print(line) \
             do { if (MYDEBUG) Serial.print(line); } while (0)
 #define debug_println(line) \
@@ -79,6 +80,9 @@ uint8_t deviceCount = 0;
 
 String bmeAddr = "";
 Adafruit_BME280 bme; // I2C
+
+String shAddr = "";
+Adafruit_Si7021 sh = Adafruit_Si7021(); // I2C
 
 // to hold device addresses
 DeviceAddress* deviceAddresses = NULL;
@@ -385,7 +389,10 @@ void loadConfigFile() {
 }
 
 void loadConfig() {
-  if (!SPIFFS.begin()) {
+  debug_println("loadConfig:");
+  if (SPIFFS.begin()) {
+    debug_println("Init SPIFFS - successful.");
+  } else {
     Serial.println("Error while init SPIFFS.");
     return;
   }
@@ -410,6 +417,10 @@ void fetchAndSendSensorValues() {
   if (bmeAddr.length() > 0) {
     getSensorData(bmeAddr+"h").value = String(bme.readHumidity());
     getSensorData(bmeAddr+"p").value = String(bme.seaLevelForAltitude(ALTITUDE, bme.readPressure()));
+  }
+
+  if (shAddr.length() > 0) {
+    getSensorData(shAddr).value = String(sh.readHumidity());
   }
 
   // measurand + location + node + sensor + value + fix + null
@@ -492,6 +503,23 @@ void setupI2CSensors() {
     addSensor(bmeAddr+"h", "BME280", "humidity");
     addSensor(bmeAddr+"p", "BME280", "pressure");
   }
+
+  if (sh.begin()) {
+    String model = "";
+    switch(sh.getModel()) {
+      case SI_7013:
+        model="Si7013"; break;
+      case SI_7020:
+        model="Si7020"; break;
+      case SI_7021:
+        model="Si7021"; break;
+      default:
+        model="Si70xx";
+    }
+    Serial.println("Found "+model+" sensor!");
+    shAddr = "40h";
+    addSensor(shAddr, model, "humidity");
+  }
 }
 
 Ticker timer1(fetchAndSendSensorValues, FETCH_SENSORS_CYCLE_SEC * 1000);
@@ -507,11 +535,13 @@ void setup(void) {
   }
 
   // start serial port
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   // autoconnect timeout: 3min
   wifiManager.setConfigPortalTimeout(180);
-  
+  wifiManager.setDebugOutput(false);
+
+  Serial.print("Try WIFI connect ... ");
   if(!wifiManager.autoConnect(DEFAULT_NODE_NAME)) {
     Serial.println("failed to connect and hit timeout");
     //reset and try again, or maybe put it to deep sleep
