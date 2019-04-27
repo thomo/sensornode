@@ -152,6 +152,7 @@ void updateSensorTopic(String id) {
 
 void updateSensorTopics() {
   uint8_t idx = 0;
+  Serial.println("Update sensor topics with rootTopic: " + rootTopic);
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
     updateSensorTopic(sensors[idx].id);
     ++idx;
@@ -215,19 +216,26 @@ void saveConfig() {
     Serial.println("File '"+String(CONFIG_FILE)+"' open to write failed");
   } else {
     Serial.print("Save config file ...");
-    
-    f.println("node=" + nodeName);
-    debug_println("<- node='" + nodeName+"'");
+    debug_println("");
 
-    f.println("topic=" + rootTopic);
-    debug_println("<- topic='" + rootTopic+"'");
+    String line = "node=" + nodeName;
+    f.println(line);
+    debug_println("<- " + line);
+
+    line = "topic=" + rootTopic;
+    f.println(line);
+    debug_println("<- " + line);
     
     uint8_t idx = 0;
     while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
-      f.println("sensor-" + sensors[idx].id + "=" + sensors[idx].location);
-      debug_println("<- Sensor(" + sensors[idx].id + ").location='" + sensors[idx].location+"'");
-      f.println("sensor.enabled-" + sensors[idx].id + "=" + sensors[idx].enabled);
-      debug_println("<- Sensor(" + sensors[idx].id + ").enabled=" + sensors[idx].enabled);
+      line = "sensor-" + sensors[idx].id + "=" + sensors[idx].location;
+      f.println(line);
+      debug_println("<- " + line);
+
+      line = "sensor.enabled-" + sensors[idx].id + "=" + sensors[idx].enabled;
+      f.println(line);
+      debug_println("<- " + line);
+      
       ++idx;
     }
     
@@ -352,11 +360,12 @@ void loadConfigFile() {
     Serial.println("File '"+String(CONFIG_FILE)+"' not found/open failed - use default values");
   } else {
     Serial.print("Load config file ...");
+    debug_println("");
     uint8_t idx = 0;
     while(f.available() && idx < MAX_SENSORS) {
       String line = f.readStringUntil('\n');
       line.remove(line.length()-1); // remove CR 
-      debug_println("line: '"+line+"'");
+      debug_println("cfgline: '"+line+"'");
 
       if (line.indexOf("node=") >= 0) {
         nodeName = line.substring(sizeof("node=")-1);
