@@ -23,8 +23,19 @@ There are some values which are only configureable on compile time (in `main.cpp
 - FETCH_SENSORS_CYCLE_SEC (= 10) - fetch the sensor values every 10 seconds
 - MAX_SENSORS (= 10) - number of supported sensors
 
+## Runtime configuration
 
-## Runtime configuration 
+The runtime configuration is done by using a configuration web page served by the node. Just enter *http://\<the node ip\>*
 
 ![Configuration page](https://github.com/thomo/sensornode/raw/master/SensorNode_ConfigPage.png "Configuration page")
 
+## MQTT Topic and Payload
+
+The node will acquire the sensor measurements every X seconds - wether or not the sensor is enabled. It will than publish the value to the MQTT server with:
+
+- topic: `<root topic>/<location>` - where each dot '.' in the root topic and in location is replaced by a slash. 
+  
+  E.g.: with root topic *homebase* and sensor location *ground.kitchen* the resulting topic is `homebase/ground/kitchen`. 
+- payload: `<measurand>,location=<sensor location>,node=<node name>,sensor=<sensor type> value=<sensor value>`
+
+  E.g.: for the selected DS18B20 sensor above the payload is `temperature,location=upstairs.workroom,node=f42,sensor=DS18B20 value=25.25`
