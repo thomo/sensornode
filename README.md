@@ -39,3 +39,15 @@ The node will acquire the sensor measurements every X seconds - wether or not th
 - payload: `<measurand>,location=<sensor location>,node=<node name>,sensor=<sensor type> value=<sensor value>`
 
   E.g.: for the selected DS18B20 sensor above the payload is `temperature,location=upstairs.workroom,node=f42,sensor=DS18B20 value=25.25`
+
+# PCB designs
+
+# SensorNodeUsb
+
+It is a board to be used with the sensor node code. The board is designed to be simply plugged in an USB port.
+
+![Circuit](board/SensorNodeUsb_Circuit.png "SensorNodeUsb circuit")
+
+![PCB top layer](board/SensorNodeUsb_Top.png "SensorNodeUsb PCB top layer")
+
+![PCB bottom layer](board/SensorNodeUsb_Bottom.png "SensorNodeUsb PCB bottom layer")
