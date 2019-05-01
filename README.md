@@ -27,7 +27,7 @@ There are some values which are only configureable on compile time (in `main.cpp
 
 The runtime configuration is done by using a configuration web page served by the node. Just enter *http://\<the node ip\>*
 
-![Configuration page](https://github.com/thomo/sensornode/raw/master/SensorNode_ConfigPage.png "Configuration page")
+![Configuration page](SensorNode_ConfigPage.png "Configuration page")
 
 ## MQTT Topic and Payload
 
