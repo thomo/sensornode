@@ -17,7 +17,7 @@ The ESP will than read the sensors every 10 seconds (can be changed in `main.cpp
 There are some values which are only configureable on compile time (in `main.cpp`).
 
 - DEFAULT_NODE_NAME (= F42-NODE) - used as WiFi SSID
-- MQTT_SERVER (= mqtt.thomo.de) - the MQTT server
+- MQTT_SERVER (= mqtt.thomo.de) - the MQTT server, you will have to use your own :wink:
 - ALTITUDE (= 282.0F) - your local altitude in meters, used to adjust the pressure measurement
 - DEFAULT_ROOT_TOPIC (= "tmp") - the standard root topic
 - FETCH_SENSORS_CYCLE_SEC (= 10) - fetch the sensor values every 10 seconds
