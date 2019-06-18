@@ -36,7 +36,7 @@
 
 #define CONFIG_HTML "/config.html"
 #define CONFIG_FILE "/config.cfg"
-#define MAX_SENSORS 10
+#define MAX_SENSORS 13
 
 //                              {"node" : " 20 "}
 #define SIZE_JSON_NODE         (2 +4 +1+1+1+20+2)
@@ -431,12 +431,14 @@ void fetchAndSendSensorValues() {
   }
 
   if (bmeAddr.length() > 0) {
+    getSensorData(bmeAddr+"t").value = String(bme.readTemperature());
     getSensorData(bmeAddr+"h").value = String(bme.readHumidity());
     getSensorData(bmeAddr+"p").value = String(bme.seaLevelForAltitude(ALTITUDE, bme.readPressure()));
   }
 
   if (shAddr.length() > 0) {
-    getSensorData(shAddr).value = String(sh.readHumidity());
+    getSensorData(shAddr+"h").value = String(sh.readHumidity());
+    getSensorData(shAddr+"t").value = String(sh.readTemperature());
   }
 
   // measurand + location + node + sensor + value + fix + null
@@ -519,6 +521,7 @@ void setupI2CSensors() {
     Serial.println("Found BME280 sensor on 0x" + bmeAddr);
     addSensor(bmeAddr+"h", "BME280", "humidity");
     addSensor(bmeAddr+"p", "BME280", "pressure");
+    addSensor(bmeAddr+"t", "BME280", "temperature");
   }
 
   if (sh.begin()) {
@@ -534,8 +537,9 @@ void setupI2CSensors() {
         model="Si70xx";
     }
     Serial.println("Found "+model+" sensor!");
-    shAddr = "40h";
-    addSensor(shAddr, model, "humidity");
+    shAddr = "40";
+    addSensor(shAddr+"h", model, "humidity");
+    addSensor(shAddr+"t", model, "temperature");
   }
 }
 
