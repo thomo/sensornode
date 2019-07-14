@@ -33,16 +33,16 @@ The runtime configuration is done by using a configuration web page served by th
 
 The node will acquire the sensor measurements every X seconds - wether or not the sensor is enabled. It will than publish the value to the MQTT server with:
 
-- topic: `<root topic>/<location>` - where each dot '.' in the root topic and in location is replaced by a slash. 
+- topic: `<root topic>/<location>` - where each dot '.' in the root topic and in location is replaced by a slash.
   
-  E.g.: with root topic *homebase* and sensor location *ground.kitchen* the resulting topic is `homebase/ground/kitchen`. 
+  E.g.: with root topic *homebase* and sensor location *ground.kitchen* the resulting topic is `homebase/ground/kitchen`.
 - payload: `<measurand>,location=<sensor location>,node=<node name>,sensor=<sensor type> value=<sensor value>`
 
   E.g.: for the selected DS18B20 sensor above the payload is `temperature,location=upstairs.workroom,node=f42,sensor=DS18B20 value=25.25`
 
-# PCB designs
+## PCB designs
 
-# SensorNodeUsb
+### SensorNodeUsb
 
 It is a board to be used with the sensor node code. The board is designed to be simply plugged in an USB port.
 
@@ -51,3 +51,5 @@ It is a board to be used with the sensor node code. The board is designed to be 
 ![PCB top layer](board/SensorNodeUsb_Top.png "SensorNodeUsb PCB top layer")
 
 ![PCB bottom layer](board/SensorNodeUsb_Bottom.png "SensorNodeUsb PCB bottom layer")
+
+If you want to order some pcb boards you can use this link to [Aisler](https://aisler.net/p/KDLFHCIK).
