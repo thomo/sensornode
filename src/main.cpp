@@ -36,7 +36,7 @@
 
 #define CONFIG_HTML "/config.html"
 #define CONFIG_FILE "/config.cfg"
-#define MAX_SENSORS 13
+#define MAX_SENSORS 23
 
 //                              {"node" : " 20 "}
 #define SIZE_JSON_NODE         (2 +4 +1+1+1+20+2)
@@ -514,7 +514,7 @@ void setupI2CSensors() {
   } else if (bme.begin(0x77)) {
     bmeAddr = "77";
   } else {
-    Serial.println("Could not find a valid BME280 sensor, check wiring!");
+    Serial.println("No BME280 sensor found.");
   }
 
   if (bmeAddr.length() > 0) {
