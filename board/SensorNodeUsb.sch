@@ -142,62 +142,6 @@
 </layers>
 <schematic xreflabel="%F%N/%S.%C%R" xrefpart="/%S.%C%R">
 <libraries>
-<library name="frames" urn="urn:adsk.eagle:library:229">
-<description>&lt;b&gt;Frames for Sheet and Layout&lt;/b&gt;</description>
-<packages>
-</packages>
-<symbols>
-<symbol name="DINA4_L" urn="urn:adsk.eagle:symbol:13867/1" library_version="1">
-<frame x1="0" y1="0" x2="264.16" y2="180.34" columns="4" rows="4" layer="94" border-left="no" border-top="no" border-right="no" border-bottom="no"/>
-</symbol>
-<symbol name="DOCFIELD" urn="urn:adsk.eagle:symbol:13864/1" library_version="1">
-<wire x1="0" y1="0" x2="71.12" y2="0" width="0.1016" layer="94"/>
-<wire x1="101.6" y1="15.24" x2="87.63" y2="15.24" width="0.1016" layer="94"/>
-<wire x1="0" y1="0" x2="0" y2="5.08" width="0.1016" layer="94"/>
-<wire x1="0" y1="5.08" x2="71.12" y2="5.08" width="0.1016" layer="94"/>
-<wire x1="0" y1="5.08" x2="0" y2="15.24" width="0.1016" layer="94"/>
-<wire x1="101.6" y1="15.24" x2="101.6" y2="5.08" width="0.1016" layer="94"/>
-<wire x1="71.12" y1="5.08" x2="71.12" y2="0" width="0.1016" layer="94"/>
-<wire x1="71.12" y1="5.08" x2="87.63" y2="5.08" width="0.1016" layer="94"/>
-<wire x1="71.12" y1="0" x2="101.6" y2="0" width="0.1016" layer="94"/>
-<wire x1="87.63" y1="15.24" x2="87.63" y2="5.08" width="0.1016" layer="94"/>
-<wire x1="87.63" y1="15.24" x2="0" y2="15.24" width="0.1016" layer="94"/>
-<wire x1="87.63" y1="5.08" x2="101.6" y2="5.08" width="0.1016" layer="94"/>
-<wire x1="101.6" y1="5.08" x2="101.6" y2="0" width="0.1016" layer="94"/>
-<wire x1="0" y1="15.24" x2="0" y2="22.86" width="0.1016" layer="94"/>
-<wire x1="101.6" y1="35.56" x2="0" y2="35.56" width="0.1016" layer="94"/>
-<wire x1="101.6" y1="35.56" x2="101.6" y2="22.86" width="0.1016" layer="94"/>
-<wire x1="0" y1="22.86" x2="101.6" y2="22.86" width="0.1016" layer="94"/>
-<wire x1="0" y1="22.86" x2="0" y2="35.56" width="0.1016" layer="94"/>
-<wire x1="101.6" y1="22.86" x2="101.6" y2="15.24" width="0.1016" layer="94"/>
-<text x="1.27" y="1.27" size="2.54" layer="94">Date:</text>
-<text x="12.7" y="1.27" size="2.54" layer="94">&gt;LAST_DATE_TIME</text>
-<text x="72.39" y="1.27" size="2.54" layer="94">Sheet:</text>
-<text x="86.36" y="1.27" size="2.54" layer="94">&gt;SHEET</text>
-<text x="88.9" y="11.43" size="2.54" layer="94">REV:</text>
-<text x="1.27" y="19.05" size="2.54" layer="94">TITLE:</text>
-<text x="1.27" y="11.43" size="2.54" layer="94">Document Number:</text>
-<text x="17.78" y="19.05" size="2.54" layer="94">&gt;DRAWING_NAME</text>
-</symbol>
-</symbols>
-<devicesets>
-<deviceset name="DINA4_L" urn="urn:adsk.eagle:component:13919/1" prefix="FRAME" uservalue="yes" library_version="1">
-<description>&lt;b&gt;FRAME&lt;/b&gt;&lt;p&gt;
-DIN A4, landscape with extra doc field</description>
-<gates>
-<gate name="G$1" symbol="DINA4_L" x="0" y="0"/>
-<gate name="G$2" symbol="DOCFIELD" x="162.56" y="0" addlevel="must"/>
-</gates>
-<devices>
-<device name="">
-<technologies>
-<technology name=""/>
-</technologies>
-</device>
-</devices>
-</deviceset>
-</devicesets>
-</library>
 <library name="ESP8266-ESP12E">
 <packages>
 <package name="ESP8266-ESP12">
@@ -8035,7 +7979,7 @@ Source: http://www.mouser.com/ds/2/392/products_18-2245.pdf</description>
 </library>
 <library name="thomo">
 <packages>
-<package name="21-0248A">
+<package name="TO-92">
 <pad name="1" x="-5.08" y="0" drill="0.762" diameter="1.27" shape="square"/>
 <pad name="2" x="-2.54" y="0" drill="0.762" diameter="1.27" shape="square"/>
 <pad name="3" x="0" y="0" drill="0.762" diameter="1.27" shape="square"/>
@@ -8051,12 +7995,6 @@ Source: http://www.mouser.com/ds/2/392/products_18-2245.pdf</description>
 <wire x1="-4.8768" y1="0" x2="-4.6228" y2="0" width="0" layer="51" curve="-180"/>
 <wire x1="-4.5466" y1="-1.4478" x2="-0.5334" y2="-1.4478" width="0.1524" layer="51" curve="-252"/>
 <text x="-5.8166" y="-3.175" size="1.27" layer="25" ratio="6" rot="SR0">&gt;Name</text>
-<polygon width="0.127" layer="39">
-<vertex x="-6.0325" y="-1.905"/>
-<vertex x="0.9525" y="-1.905"/>
-<vertex x="0.9525" y="3.175"/>
-<vertex x="-6.0325" y="3.175"/>
-</polygon>
 </package>
 <package name="TEMP-HUM-PRES-BME280">
 <description>&lt;b&gt;Digital Humidity-Temperature-Pressure Sensor&lt;/b&gt; based on &lt;b&gt;BME280&lt;/b&gt; device</description>
@@ -8110,22 +8048,23 @@ Source: http://www.mouser.com/ds/2/392/products_18-2245.pdf</description>
 <package name="JP5" urn="urn:adsk.eagle:footprint:11605239/1" locally_modified="yes">
 <description>Single-row, 5-pin Receptacle Header (Female) Straight, 2.54 mm (0.10 in) col pitch, 2.54 mm insulator length, 12.70 X 2.54 X 2.54 mm body
 &lt;p&gt;Single-row (1X5), 5-pin Receptacle Header (Female) Straight package with 2.54 mm (0.10 in) col pitch, 0.64 mm lead width, 3.00 mm tail length and 2.54 mm insulator length with overall size 12.70 X 2.54 X 2.54 mm, pin pattern - clockwise from top left&lt;/p&gt;</description>
-<circle x="0" y="1.774" radius="0.25" width="0" layer="21"/>
 <wire x1="11.43" y1="-1.27" x2="-1.27" y2="-1.27" width="0.12" layer="21"/>
-<wire x1="-1.27" y1="-1.27" x2="-1.27" y2="1.27" width="0.12" layer="21"/>
-<wire x1="-1.27" y1="1.27" x2="11.43" y2="1.27" width="0.12" layer="21"/>
+<wire x1="-1.27" y1="-1.27" x2="-1.27" y2="0.635" width="0.12" layer="21"/>
+<wire x1="-1.27" y1="0.635" x2="-0.635" y2="1.27" width="0.12" layer="21"/>
+<wire x1="-0.635" y1="1.27" x2="11.43" y2="1.27" width="0.12" layer="21"/>
 <wire x1="11.43" y1="1.27" x2="11.43" y2="-1.27" width="0.12" layer="21"/>
 <wire x1="11.43" y1="-1.27" x2="-1.27" y2="-1.27" width="0.12" layer="51"/>
-<wire x1="-1.27" y1="-1.27" x2="-1.27" y2="1.27" width="0.12" layer="51"/>
-<wire x1="-1.27" y1="1.27" x2="11.43" y2="1.27" width="0.12" layer="51"/>
+<wire x1="-1.27" y1="-1.27" x2="-1.27" y2="0.635" width="0.12" layer="51"/>
+<wire x1="-1.27" y1="0.635" x2="-0.635" y2="1.27" width="0.12" layer="51"/>
+<wire x1="-0.635" y1="1.27" x2="11.43" y2="1.27" width="0.12" layer="51"/>
 <wire x1="11.43" y1="1.27" x2="11.43" y2="-1.27" width="0.12" layer="51"/>
 <pad name="1" x="0" y="0" drill="1.1051" diameter="1.7051"/>
 <pad name="2" x="2.54" y="0" drill="1.1051" diameter="1.7051"/>
 <pad name="3" x="5.08" y="0" drill="1.1051" diameter="1.7051"/>
 <pad name="4" x="7.62" y="0" drill="1.1051" diameter="1.7051"/>
 <pad name="5" x="10.16" y="0" drill="1.1051" diameter="1.7051"/>
-<text x="0" y="2.659" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
-<text x="0" y="-1.905" size="1.27" layer="27" align="top-center">&gt;VALUE</text>
+<text x="5.08" y="1.389" size="1.27" layer="25" align="bottom-center">&gt;NAME</text>
+<text x="5.08" y="-2.54" size="1.27" layer="27" rot="R180" align="top-center">&gt;VALUE</text>
 </package>
 </packages>
 <packages3d>
@@ -8201,7 +8140,7 @@ Source: http://www.mouser.com/ds/2/392/products_18-2245.pdf</description>
 <gate name="A" symbol="DS18B20+" x="0" y="0"/>
 </gates>
 <devices>
-<device name="" package="21-0248A">
+<device name="" package="TO-92">
 <connects>
 <connect gate="A" pin="DQ" pad="2"/>
 <connect gate="A" pin="GND" pad="1"/>
@@ -8951,6 +8890,67 @@ You are welcome to use this library for commercial purposes. For attribution, we
 </deviceset>
 </devicesets>
 </library>
+<library name="SparkFun-Aesthetics" urn="urn:adsk.eagle:library:507">
+<description>&lt;h3&gt;SparkFun Aesthetics&lt;/h3&gt;
+This library contiains non-functional items such as logos, build/ordering notes, frame blocks, etc. 
+&lt;br&gt;
+&lt;br&gt;
+We've spent an enormous amount of time creating and checking these footprints and parts, but it is &lt;b&gt; the end user's responsibility&lt;/b&gt; to ensure correctness and suitablity for a given componet or application. 
+&lt;br&gt;
+&lt;br&gt;If you enjoy using this library, please buy one of our products at &lt;a href=" www.sparkfun.com"&gt;SparkFun.com&lt;/a&gt;.
+&lt;br&gt;
+&lt;br&gt;
+&lt;b&gt;Licensing:&lt;/b&gt; Creative Commons ShareAlike 4.0 International - https://creativecommons.org/licenses/by-sa/4.0/ 
+&lt;br&gt;
+&lt;br&gt;
+You are welcome to use this library for commercial purposes. For attribution, we ask that when you begin to sell your device using our footprint, you email us with a link to the product being sold. We want bragging rights that we helped (in a very small part) to create your 8th world wonder. We would like the opportunity to feature your device on our homepage.</description>
+<packages>
+</packages>
+<symbols>
+<symbol name="FR-A4L" urn="urn:adsk.eagle:symbol:37073/1" library_version="1">
+<description>&lt;h3&gt;Schematic Frame - A4L - European Format&lt;/h3&gt;
+&lt;p&gt;Standard A4 size frame in Landscape&lt;/p&gt;
+&lt;p&gt;Devices using:
+&lt;ul&gt;&lt;li&gt;FRAME-A4L&lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;</description>
+<rectangle x1="178.7652" y1="0" x2="179.3748" y2="20.32" layer="94"/>
+<rectangle x1="225.7552" y1="-26.67" x2="226.3648" y2="67.31" layer="94" rot="R90"/>
+<wire x1="225.29" y1="-0.1" x2="225.29" y2="5.08" width="0.1016" layer="94"/>
+<wire x1="225.29" y1="5.08" x2="273.05" y2="5.08" width="0.1016" layer="94"/>
+<wire x1="225.29" y1="5.08" x2="179.07" y2="5.08" width="0.1016" layer="94"/>
+<wire x1="179.07" y1="10.16" x2="225.29" y2="10.16" width="0.1016" layer="94"/>
+<wire x1="225.29" y1="10.16" x2="273.05" y2="10.16" width="0.1016" layer="94"/>
+<wire x1="179.07" y1="15.24" x2="273.05" y2="15.24" width="0.1016" layer="94"/>
+<wire x1="225.29" y1="5.08" x2="225.29" y2="10.16" width="0.1016" layer="94"/>
+<wire x1="179.07" y1="19.05" x2="179.07" y2="20.32" width="0.6096" layer="94"/>
+<wire x1="179.07" y1="20.32" x2="180.34" y2="20.32" width="0.6096" layer="94"/>
+<text x="181.61" y="11.43" size="2.54" layer="94" font="vector">&gt;DRAWING_NAME</text>
+<text x="181.61" y="6.35" size="2.286" layer="94" font="vector">&gt;LAST_DATE_TIME</text>
+<text x="195.58" y="1.27" size="2.54" layer="94" font="vector">&gt;SHEET</text>
+<text x="181.61" y="1.27" size="2.54" layer="94" font="vector">Sheet:</text>
+<text x="181.61" y="16.51" size="2.54" layer="94" font="vector">&gt;CNAME</text>
+<text x="226.16" y="1.27" size="2.54" layer="94" font="vector">Rev:</text>
+<text x="226.26" y="6.35" size="2.54" layer="94" font="vector">&gt;DESIGNER</text>
+<text x="234.92" y="1.17" size="2.54" layer="94" font="vector">&gt;CREVISION</text>
+<frame x1="-3.81" y1="-3.81" x2="276.86" y2="182.88" columns="8" rows="5" layer="94"/>
+</symbol>
+</symbols>
+<devicesets>
+<deviceset name="FRAME-A4L" urn="urn:adsk.eagle:component:37152/1" prefix="FRAME" library_version="1">
+<description>&lt;h3&gt;Schematic Frame - A4L - European Format&lt;/h3&gt;
+&lt;p&gt;Standard A4 size frame in Landscape&lt;/p&gt;</description>
+<gates>
+<gate name="G$1" symbol="FR-A4L" x="0" y="0"/>
+</gates>
+<devices>
+<device name="">
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+</devicesets>
+</library>
 </libraries>
 <attributes>
 </attributes>
@@ -8961,7 +8961,6 @@ You are welcome to use this library for commercial purposes. For attribution, we
 </class>
 </classes>
 <parts>
-<part name="FRAME1" library="frames" library_urn="urn:adsk.eagle:library:229" deviceset="DINA4_L" device=""/>
 <part name="ESP-12E" library="ESP8266-ESP12E" deviceset="ESP8266-12" device=""/>
 <part name="C1" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="C-EU" device="C1206" package3d_urn="urn:adsk.eagle:package:23618/2" value="2uF"/>
 <part name="C2" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="C-EU" device="C1206" package3d_urn="urn:adsk.eagle:package:23618/2" value="100n"/>
@@ -8987,18 +8986,19 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <part name="BME280/SI7021" library="thomo" deviceset="TEMP-HUM-PRES-BME280" device=""/>
 <part name="J1" library="thomo" deviceset="JP5E" device="" package3d_urn="urn:adsk.eagle:package:11605224/1"/>
 <part name="R5" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-EU_" device="M1206" package3d_urn="urn:adsk.eagle:package:23566/2" value="10k"/>
+<part name="FRAME2" library="SparkFun-Aesthetics" library_urn="urn:adsk.eagle:library:507" deviceset="FRAME-A4L" device="">
+<attribute name="CNAME" value="https://github.com/thomo/sensornode"/>
+<attribute name="CREVISION" value="v2.0"/>
+<attribute name="DESIGNER" value="ThoMo"/>
+</part>
+<part name="C4" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="C-EU" device="C1206" package3d_urn="urn:adsk.eagle:package:23618/2" value="1nF"/>
+<part name="GND3" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="GND" device=""/>
 </parts>
 <sheets>
 <sheet>
 <plain>
 </plain>
 <instances>
-<instance part="FRAME1" gate="G$1" x="0" y="0" smashed="yes"/>
-<instance part="FRAME1" gate="G$2" x="162.56" y="0" smashed="yes">
-<attribute name="LAST_DATE_TIME" x="175.26" y="1.27" size="2.54" layer="94"/>
-<attribute name="SHEET" x="248.92" y="1.27" size="2.54" layer="94"/>
-<attribute name="DRAWING_NAME" x="180.34" y="19.05" size="2.54" layer="94"/>
-</instance>
 <instance part="ESP-12E" gate="G$1" x="170.18" y="116.84" smashed="yes">
 <attribute name="NAME" x="160.02" y="129.54" size="1.27" layer="94"/>
 </instance>
@@ -9083,6 +9083,21 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <attribute name="NAME" x="186.4614" y="100.33" size="1.778" layer="95" rot="R90"/>
 <attribute name="VALUE" x="191.262" y="100.33" size="1.778" layer="96" rot="R90"/>
 </instance>
+<instance part="FRAME2" gate="G$1" x="3.81" y="3.81" smashed="yes">
+<attribute name="DRAWING_NAME" x="185.42" y="15.24" size="2.54" layer="94" font="vector"/>
+<attribute name="LAST_DATE_TIME" x="185.42" y="10.16" size="2.286" layer="94" font="vector"/>
+<attribute name="SHEET" x="199.39" y="5.08" size="2.54" layer="94" font="vector"/>
+<attribute name="CNAME" x="185.42" y="20.32" size="2.54" layer="94" font="vector"/>
+<attribute name="CREVISION" x="238.73" y="4.98" size="2.54" layer="94" font="vector"/>
+<attribute name="DESIGNER" x="230.07" y="10.16" size="2.54" layer="94" font="vector"/>
+</instance>
+<instance part="C4" gate="G$1" x="147.32" y="139.7" smashed="yes">
+<attribute name="NAME" x="148.844" y="140.081" size="1.778" layer="95"/>
+<attribute name="VALUE" x="148.844" y="135.001" size="1.778" layer="96"/>
+</instance>
+<instance part="GND3" gate="1" x="147.32" y="144.78" smashed="yes" rot="R180">
+<attribute name="VALUE" x="149.86" y="147.32" size="1.778" layer="96" rot="R180"/>
+</instance>
 </instances>
 <busses>
 </busses>
@@ -9140,6 +9155,10 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <pinref part="C2" gate="G$1" pin="2"/>
 <pinref part="GND7" gate="1" pin="GND"/>
 <wire x1="106.68" y1="132.08" x2="106.68" y2="127" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="C4" gate="G$1" pin="1"/>
+<pinref part="GND3" gate="1" pin="GND"/>
 </segment>
 </net>
 <net name="+3V3" class="0">
@@ -9215,6 +9234,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <pinref part="J1" gate="G$1" pin="2"/>
 <wire x1="180.34" y1="127" x2="195.58" y2="127" width="0.1524" layer="91"/>
 <label x="190.5" y="127" size="1.778" layer="95"/>
+<pinref part="C4" gate="G$1" pin="2"/>
 </segment>
 </net>
 <net name="DATA_1W" class="0">
@@ -9241,7 +9261,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <wire x1="134.62" y1="119.38" x2="134.62" y2="132.08" width="0.1524" layer="91"/>
 </segment>
 </net>
-<net name="DTR" class="0">
+<net name="GP0" class="0">
 <segment>
 <pinref part="R4" gate="G$1" pin="1"/>
 <pinref part="ESP-12E" gate="G$1" pin="GPIO0"/>
@@ -9286,22 +9306,6 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <wire x1="139.7" y1="116.84" x2="139.7" y2="121.92" width="0.1524" layer="91"/>
 </segment>
 </net>
-<net name="TX" class="0">
-<segment>
-<pinref part="ESP-12E" gate="G$1" pin="TXD"/>
-<wire x1="180.34" y1="124.46" x2="195.58" y2="124.46" width="0.1524" layer="91"/>
-<pinref part="J1" gate="G$1" pin="3"/>
-<label x="190.5" y="124.46" size="1.778" layer="95"/>
-</segment>
-</net>
-<net name="RX" class="0">
-<segment>
-<pinref part="ESP-12E" gate="G$1" pin="RXD"/>
-<wire x1="180.34" y1="121.92" x2="195.58" y2="121.92" width="0.1524" layer="91"/>
-<pinref part="J1" gate="G$1" pin="4"/>
-<label x="190.5" y="121.92" size="1.778" layer="95"/>
-</segment>
-</net>
 <net name="N$8" class="0">
 <segment>
 <pinref part="C1" gate="G$1" pin="1"/>
@@ -9318,6 +9322,20 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <pinref part="ESP-12E" gate="G$1" pin="GPIO15"/>
 <pinref part="R5" gate="G$1" pin="2"/>
 <wire x1="180.34" y1="109.22" x2="187.96" y2="109.22" width="0.1524" layer="91"/>
+</segment>
+</net>
+<net name="N$1" class="0">
+<segment>
+<pinref part="ESP-12E" gate="G$1" pin="RXD"/>
+<pinref part="J1" gate="G$1" pin="3"/>
+<wire x1="180.34" y1="121.92" x2="195.58" y2="124.46" width="0.1524" layer="91"/>
+</segment>
+</net>
+<net name="N$4" class="0">
+<segment>
+<pinref part="ESP-12E" gate="G$1" pin="TXD"/>
+<pinref part="J1" gate="G$1" pin="4"/>
+<wire x1="180.34" y1="124.46" x2="195.58" y2="121.92" width="0.1524" layer="91"/>
 </segment>
 </net>
 </nets>
