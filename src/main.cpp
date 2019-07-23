@@ -559,6 +559,7 @@ void setup(void) {
     sensors[i].id = "";
     sensors[i].type = "";
     sensors[i].location = "";
+    sensors[i].topic=""; 
     sensors[i].measurand = "";
     sensors[i].value = "";
   }
