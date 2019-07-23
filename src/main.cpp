@@ -97,7 +97,7 @@ String configHtml = "";
 String nodeName = DEFAULT_NODE_NAME;
 String rootTopic = DEFAULT_ROOT_TOPIC;
 
-typedef struct SensorData {
+struct SensorData {
   bool enabled;
   String id;
   String type;
@@ -105,9 +105,17 @@ typedef struct SensorData {
   String topic;
   String measurand;
   String value;
-} SensorData;
+};
 
-SensorData tmpSensor = {false, "", "", "", "", "", "?"};
+SensorData tmpSensor = { 
+  .enabled =false, 
+  .id="", 
+  .type="", 
+  .location="", 
+  .topic="", 
+  .measurand="", 
+  .value=""
+};
 
 SensorData sensors[MAX_SENSORS]; 
 
@@ -176,9 +184,9 @@ uint16_t getPayload(char payload[]) {
     if (index < PAYLOAD_BUFFER_SIZE - 1) {
       int c = espClient.read();
       if (c >= 32) {
-        payload[index++] = c;
+        payload[index++] = (char) c;
       } else if (c == '\n') {
-        payload[index++] = c;
+        payload[index++] = (char) c;
       }   
     }
   }
@@ -382,15 +390,15 @@ void loadConfigFile() {
         updateSensorTopics();
       } else if (line.indexOf("sensor.enabled-") >= 0) {        
         int eq = line.indexOf("=");
-        String id = line.substring(sizeof("sensor.enabled-")-1, eq);
+        String id = line.substring(sizeof("sensor.enabled-") - 1, eq);
         String enabled = line.substring(eq+1);
         getSensorData(id).enabled = enabled.toInt();
         debug_println("-> Sensor("+id+").enabled="+enabled);
         idx = numberOfSensors();
       } else if (line.indexOf("sensor-") >= 0) {        
         int eq = line.indexOf("=");
-        String id = line.substring(sizeof("sensor-")-1, eq);
-        String location = line.substring(eq+1);
+        String id = line.substring(sizeof("sensor-") - 1, eq);
+        String location = line.substring(eq + 1);
         getSensorData(id).location = location;
         debug_println("-> Sensor("+id+").location='"+location+"'");
         updateSensorTopic(id);
