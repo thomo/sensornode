@@ -123,7 +123,7 @@ uint8_t numberOfSensors() {
   return idx;
 }
 
-void addSensor(String id, String type, String measurand) {
+void addSensor(const String& id, const String& type, const String& measurand) {
   uint8_t idx = 0;
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {++idx;}
   if (idx < MAX_SENSORS) {
@@ -138,19 +138,19 @@ void addSensor(String id, String type, String measurand) {
   }
 }
 
-String getSensorLocation(String id) {
+String getSensorLocation(const String& id) {
   uint8_t idx = 0;
   while (!sensors[idx].id.equals(id) && idx < MAX_SENSORS) {++idx;}
   return (idx < MAX_SENSORS) ? sensors[idx].location : ""; 
 }
 
-SensorData& getSensorData(String id) {
+SensorData& getSensorData(const String& id) {
   uint8_t idx = 0;
   while (!sensors[idx].id.equals(id) && idx < MAX_SENSORS) {++idx;}
   return idx < MAX_SENSORS ? sensors[idx] : tmpSensor;
 }
 
-void updateSensorTopic(String id) {
+void updateSensorTopic(const String& id) {
   getSensorData(id).topic = rootTopic + "." + getSensorData(id).location;
   getSensorData(id).topic.replace(".", "/");
   debug_println("-> Sensor("+id+").topic = '"+getSensorData(id).topic+"'");
@@ -165,7 +165,7 @@ void updateSensorTopics() {
   }
 }
 
-void printSensorData(String id) {
+void printSensorData(const String& id) {
   SensorData sd = getSensorData(id);
   Serial.println(sd.type + " " + sd.location + "(" + sd.id + "): "+ sd.value);
 }
@@ -173,7 +173,7 @@ void printSensorData(String id) {
 uint16_t getPayload(char payload[]) {
   uint16_t index=0;
   while (espClient.connected() && espClient.available()) {
-    if (espClient.available() && index < PAYLOAD_BUFFER_SIZE - 1) {
+    if (index < PAYLOAD_BUFFER_SIZE - 1) {
       int c = espClient.read();
       if (c >= 32) {
         payload[index++] = c;
@@ -186,7 +186,7 @@ uint16_t getPayload(char payload[]) {
   return index;
 }
 
-void printKV(String k, String v) {
+void printKV(const String& k, const String& v) {
   espClient.print("\"");
   espClient.print(k);
   espClient.print("\":\"");
@@ -194,7 +194,7 @@ void printKV(String k, String v) {
   espClient.print("\"");
 }
 
-String findData(String line, String key) {
+String findData(const String& line, const String& key) {
   int sIndex = line.indexOf(key+"=");
   if (sIndex < 0) return "";
   sIndex += (key.length() + 1);
@@ -253,7 +253,7 @@ void saveConfig() {
   SPIFFS.end();
 }
 
-bool isNewValue(String oldValue, String newValue) {
+bool isNewValue(const String& oldValue, const String& newValue) {
   return newValue.length() > 0 && !oldValue.equals(newValue);
 }
 
