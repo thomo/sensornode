@@ -36,7 +36,7 @@
 
 #define CONFIG_HTML "/config.html"
 #define CONFIG_FILE "/config.cfg"
-#define MAX_SENSORS 23
+#define MAX_SENSORS 10
 
 //                              {"node" : " 20 "}
 #define SIZE_JSON_NODE         (2 +4 +1+1+1+20+2)
@@ -310,46 +310,46 @@ void handleGetSensors() {
 
 // POST new node name and/or a new sensor location
 void handlePostRoot() {
-      String content = espServer.arg("plain");
-      debug_println("Request content: '" + content + "'");
+  String content = espServer.arg("plain");
+  debug_println("Request content: '" + content + "'");
 
-      bool needSave = false;
-      String newValue;
+  bool needSave = false;
+  String newValue;
 
-      newValue = findData(content, "node"); 
-      if (isNewValue(nodeName, newValue)) {
-        nodeName = newValue;
-        needSave = true;
-      }
+  newValue = findData(content, "node"); 
+  if (isNewValue(nodeName, newValue)) {
+    nodeName = newValue;
+    needSave = true;
+  }
 
-      newValue = findData(content, "topic");
-      if (isNewValue(rootTopic, newValue)) {
-        rootTopic = newValue;
-        updateSensorTopics();
-        needSave = true;
-      }
+  newValue = findData(content, "topic");
+  if (isNewValue(rootTopic, newValue)) {
+    rootTopic = newValue;
+    updateSensorTopics();
+    needSave = true;
+  }
 
-      uint8_t idx = 0;
-      while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
-        String key = "loc-" + sensors[idx].id;
-        newValue = findData(content, key);
-        if (isNewValue(sensors[idx].location, newValue)) {
-          sensors[idx].location = newValue;
-          updateSensorTopic(sensors[idx].id);
-          needSave = true;
-        }
-        key = "en-" + sensors[idx].id;
-        newValue = findData(content, key);
-        bool newEnabled = newValue.equals("on");
-        needSave = needSave || (sensors[idx].enabled == newEnabled);
-        sensors[idx].enabled = newEnabled;
-        ++idx;
-      }
+  uint8_t idx = 0;
+  while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
+    String key = "loc-" + sensors[idx].id;
+    newValue = findData(content, key);
+    if (isNewValue(sensors[idx].location, newValue)) {
+      sensors[idx].location = newValue;
+      updateSensorTopic(sensors[idx].id);
+      needSave = true;
+    }
+    key = "en-" + sensors[idx].id;
+    newValue = findData(content, key);
+    bool newEnabled = newValue.equals("on");
+    needSave = needSave || (sensors[idx].enabled == newEnabled);
+    sensors[idx].enabled = newEnabled;
+    ++idx;
+  }
 
-      if (needSave) saveConfig();
-      
-      espServer.sendHeader("Location", "/");
-      espServer.send(303);
+  if (needSave) saveConfig();
+  
+  espServer.sendHeader("Location", "/");
+  espServer.send(303);
 }
 
 void handleError() {
