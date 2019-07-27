@@ -57,7 +57,7 @@
 #define SIZE_JSONKV_VALUE      (1+5+1+1+1+20+1)
 //                            "___________"   :{  "______________": x   ,   "____":"___________"   ,   "_____":"______"   ,   "____":"_____________"  ,   "_____":"_______"   }   ,
 #define SIZE_JSON_ONE_SENSOR (SIZE_JSONK_ID + 2 + SIZE_JSONKV_ENABLED + 1 + SIZE_JSONKV_LOCATION + 1 + SIZE_JSONKV_TYPE + 1 + SIZE_JSONKV_MEASURAND + 1 + SIZE_JSONKV_VALUE + 1 + 1)
-
+          
 #define SIZE_JSONV_SENSORS  (SIZE_JSON_ONE_SENSOR * MAX_SENSORS)
 
 //                          { "sensors" : { SIZE_JSONV_SENSORS } }
@@ -76,7 +76,7 @@ OneWire oneWire(ONE_WIRE_PIN);
 
 // Pass our oneWire reference to Dallas Temperature. 
 DallasTemperature dsSensors(&oneWire);
-uint8_t deviceCount = 0;
+uint8_t oneWireDeviceCount = 0;
 
 String bmeAddr = "";
 Adafruit_BME280 bme; // I2C
@@ -431,7 +431,7 @@ void fetchAndSendSensorValues() {
   // request to all devices on the bus
   dsSensors.requestTemperatures();
 
-  for (uint8_t i = 0; i < deviceCount; ++i) {
+  for (uint8_t i = 0; i < oneWireDeviceCount; ++i) {
     char idbuf[17];
     float tempC = dsSensors.getTempC(deviceAddresses[i]);
     addr2hex(deviceAddresses[i], idbuf);
@@ -493,17 +493,17 @@ void mqttReconnect() {
 void setupOneWireSensors() {
   // Start up the library
   dsSensors.begin();
-  deviceCount = dsSensors.getDeviceCount();
+  oneWireDeviceCount = dsSensors.getDeviceCount();
 
   // locate devices on the bus
   Serial.print("Found ");
-  Serial.print(deviceCount);
+  Serial.print(oneWireDeviceCount);
   Serial.println(" OneWire devices.");
 
-  deviceAddresses = (DeviceAddress*) calloc(deviceCount, sizeof(DeviceAddress));
+  deviceAddresses = (DeviceAddress*) calloc(oneWireDeviceCount, sizeof(DeviceAddress));
 
   // search for devices on the bus and assign based on an index.
-  for (uint8_t i = 0; i < deviceCount; ++i) {
+  for (uint8_t i = 0; i < oneWireDeviceCount; ++i) {
     if (!dsSensors.getAddress(deviceAddresses[i], i)) {
       Serial.print("Unable to find address for Device "); 
       Serial.print(i, DEC);
