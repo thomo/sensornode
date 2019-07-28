@@ -24,8 +24,6 @@
 #define DEFAULT_NODE_NAME "F42-NODE"
 #define MQTT_SERVER "mqtt.thomo.de"
 
-#define ALTITUDE 282.0F
-
 #define DEFAULT_ROOT_TOPIC "tmp"
 
 #define FETCH_SENSORS_CYCLE_SEC 10
@@ -38,10 +36,6 @@
 #define CONFIG_FILE "/config.cfg"
 #define MAX_SENSORS 10
 
-//                              {"node" : " 20 "}
-#define SIZE_JSON_NODE         (2 +4 +1+1+1+20+2)
-//                              {"topic" : " 20 "}
-#define SIZE_JSON_TOPIC        (3 +5  +1+1+1+20+2)
 //                              " 30 " 
 #define SIZE_JSONK_ID          (1+30+1)
 
@@ -55,17 +49,22 @@
 #define SIZE_JSONKV_MEASURAND  (1+9+1+1+1+30+1)
 //                              " 5 " : " 20 " 
 #define SIZE_JSONKV_VALUE      (1+5+1+1+1+20+1)
-//                            "___________"   :{  "______________": x   ,   "____":"___________"   ,   "_____":"______"   ,   "____":"_____________"  ,   "_____":"_______"   }   ,
-#define SIZE_JSON_ONE_SENSOR (SIZE_JSONK_ID + 2 + SIZE_JSONKV_ENABLED + 1 + SIZE_JSONKV_LOCATION + 1 + SIZE_JSONKV_TYPE + 1 + SIZE_JSONKV_MEASURAND + 1 + SIZE_JSONKV_VALUE + 1 + 1)
+//                              " 10 " : " 7 " 
+#define SIZE_JSONKV_CORRECTION (1+10+1+1+1+7+1)
+//                              "___________"   :{  "______________": x   ,   "____":"___________"   ,   "_____":"______"   ,   "____":"____________"   ,   "_____":"_______"   ,   "_____":"____________"   }   ,
+#define SIZE_JSON_ONE_SENSOR   (SIZE_JSONK_ID + 2 + SIZE_JSONKV_ENABLED + 1 + SIZE_JSONKV_LOCATION + 1 + SIZE_JSONKV_TYPE + 1 + SIZE_JSONKV_MEASURAND + 1 + SIZE_JSONKV_VALUE + 1 + SIZE_JSONKV_CORRECTION + 1 + 1)
           
-#define SIZE_JSONV_SENSORS  (SIZE_JSON_ONE_SENSOR * MAX_SENSORS)
+#define SIZE_JSONV_SENSORS     (SIZE_JSON_ONE_SENSOR * MAX_SENSORS)
 
-//                          { "sensors" : { SIZE_JSONV_SENSORS } }
-#define SIZE_JSON_SENSORS  (1+1+  7  +1+1+1+SIZE_JSONV_SENSORS+1+1)
+//                              {"node"     : " 20 "}
+//                              {"topic"    : " 20 "}
+//                              {"altitude" : " 7 "}
+//                              { "sensors" : { SIZE_JSONV_SENSORS } }
+#define SIZE_JSON_BUFFER       (1+1+  7  +1+1+1+SIZE_JSONV_SENSORS+1+1)
 
 #define PAYLOAD_BUFFER_SIZE (1024+20+20+MAX_SENSORS*40) 
 
-#define MYDEBUG 0
+#define MYDEBUG 1
 #define debug_print(line) \
             do { if (MYDEBUG) Serial.print(line); } while (0)
 #define debug_println(line) \
@@ -93,9 +92,13 @@ ESP8266WebServer espServer(80);
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
+#define SIZE_WEBSENDBUFFER (SIZE_JSON_BUFFER)
+char webSendBuffer[SIZE_WEBSENDBUFFER] = "";
+
 String configHtml = "";
 String nodeName = DEFAULT_NODE_NAME;
 String rootTopic = DEFAULT_ROOT_TOPIC;
+float nodeAltitude = 282.0f;
 
 struct SensorData {
   bool enabled;
@@ -105,6 +108,7 @@ struct SensorData {
   String topic;
   String measurand;
   String value;
+  float correction;
 };
 
 SensorData tmpSensor = { 
@@ -114,7 +118,8 @@ SensorData tmpSensor = {
   .location="", 
   .topic="", 
   .measurand="", 
-  .value=""
+  .value="",
+  .correction=0.0f
 };
 
 SensorData sensors[MAX_SENSORS]; 
@@ -176,6 +181,34 @@ void updateSensorTopics() {
 void printSensorData(const String& id) {
   SensorData sd = getSensorData(id);
   Serial.println(sd.type + " " + sd.location + "(" + sd.id + "): "+ sd.value);
+}
+
+void setSensorDataValue(const String& id, float v) {
+  SensorData &sd = getSensorData(id);
+  sd.value = String(v + sd.correction, 2);
+}
+
+void fetchSensorValues() {
+  // request to all devices on the bus
+  dsSensors.requestTemperatures();
+
+  for (uint8_t i = 0; i < oneWireDeviceCount; ++i) {
+    char idbuf[17];
+    float tempC = dsSensors.getTempC(deviceAddresses[i]);
+    addr2hex(deviceAddresses[i], idbuf);
+    setSensorDataValue(idbuf, tempC);
+  }
+
+  if (bmeAddr.length() > 0) {
+    setSensorDataValue(bmeAddr+"t",bme.readTemperature());
+    setSensorDataValue(bmeAddr+"h",bme.readHumidity());
+    setSensorDataValue(bmeAddr+"p",bme.seaLevelForAltitude(nodeAltitude, bme.readPressure()));
+  }
+
+  if (shAddr.length() > 0) {
+    setSensorDataValue(shAddr+"h",sh.readHumidity());
+    setSensorDataValue(shAddr+"t",sh.readTemperature());
+  }
 }
 
 uint16_t getPayload(char payload[]) {
@@ -240,6 +273,10 @@ void saveConfig() {
     f.println(line);
     debug_println("<- " + line);
     
+    line = "altitude=" + String(nodeAltitude, 2);
+    f.println(line);
+    debug_println("<- " + line);
+    
     uint8_t idx = 0;
     while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
       line = "sensor-" + sensors[idx].id + "=" + sensors[idx].location;
@@ -247,6 +284,10 @@ void saveConfig() {
       debug_println("<- " + line);
 
       line = "sensor.enabled-" + sensors[idx].id + "=" + sensors[idx].enabled;
+      f.println(line);
+      debug_println("<- " + line);
+      
+      line = "sensor.correction-" + sensors[idx].id + "=" + sensors[idx].correction;
       f.println(line);
       debug_println("<- " + line);
       
@@ -270,19 +311,22 @@ void handleGetRoot() {
 }
 
 void handleGetNode() {
-  char buf[SIZE_JSON_NODE];
-  snprintf(buf, SIZE_JSON_NODE, "{\"node\":\"%s\"}", nodeName.c_str());
-  espServer.send(200, "application/json", buf);   
+  snprintf(webSendBuffer, SIZE_WEBSENDBUFFER, "{\"node\":\"%s\"}", nodeName.c_str());
+  espServer.send(200, "application/json", webSendBuffer);   
 }
 
 void handleGetTopic() {
-  char buf[SIZE_JSON_TOPIC];
-  snprintf(buf, SIZE_JSON_TOPIC, "{\"topic\":\"%s\"}", rootTopic.c_str());
-  espServer.send(200, "application/json", buf);   
+  snprintf(webSendBuffer, SIZE_WEBSENDBUFFER, "{\"topic\":\"%s\"}", rootTopic.c_str());
+  espServer.send(200, "application/json", webSendBuffer);   
+}
+
+void handleGetAltitude() {
+  snprintf(webSendBuffer, SIZE_WEBSENDBUFFER, "{\"altitude\":\"%-.2f\"}", nodeAltitude);
+  espServer.send(200, "application/json", webSendBuffer);   
 }
 
 void handleGetSensors() {
-  char buf[SIZE_JSON_SENSORS] = "{\"sensors\":{";
+  strcpy(webSendBuffer, "{\"sensors\":{");
 
   char sep[2];
   sep[0]='\0';
@@ -292,20 +336,22 @@ void handleGetSensors() {
   uint8_t idx = 0;
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
     snprintf(oneSensorBuf, SIZE_JSON_ONE_SENSOR, 
-            "%s\"%s\":{\"enabled\":%d,\"location\":\"%s\",\"type\":\"%s\",\"measurand\":\"%s\",\"value\":\"%s\"}", 
+            "%s\"%s\":{\"enabled\":%d,\"location\":\"%s\",\"type\":\"%s\",\"measurand\":\"%s\",\"value\":\"%s\",\"correction\":\"%-.2f\"}", 
             sep, 
             sensors[idx].id.c_str(), 
             sensors[idx].enabled, 
             sensors[idx].location.c_str(), 
             sensors[idx].type.c_str(), 
             sensors[idx].measurand.c_str(), 
-            sensors[idx].value.c_str());
+            sensors[idx].value.c_str(),
+            sensors[idx].correction
+            );
     sep[0]=',';
-    strncat(buf, oneSensorBuf, SIZE_JSON_SENSORS - strlen(buf));
+    strncat(webSendBuffer, oneSensorBuf, SIZE_WEBSENDBUFFER - strlen(webSendBuffer));
     ++idx;
   }
-  strncat(buf, "}}", SIZE_JSON_SENSORS - strlen(buf));
-  espServer.send(200, "application/json", buf);   
+  strncat(webSendBuffer, "}}", SIZE_WEBSENDBUFFER - strlen(webSendBuffer));
+  espServer.send(200, "application/json", webSendBuffer);   
 }
 
 // POST new node name and/or a new sensor location
@@ -314,6 +360,7 @@ void handlePostRoot() {
   debug_println("Request content: '" + content + "'");
 
   bool needSave = false;
+  bool needSensorFetch = false;
   String newValue;
 
   newValue = findData(content, "node"); 
@@ -329,6 +376,13 @@ void handlePostRoot() {
     needSave = true;
   }
 
+  newValue = findData(content, "altitude");
+  if (isNewValue(String(nodeAltitude, 2), newValue)) {
+    nodeAltitude = newValue.toFloat();
+    needSensorFetch = true;
+    needSave = true;
+  }
+
   uint8_t idx = 0;
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
     String key = "loc-" + sensors[idx].id;
@@ -338,15 +392,26 @@ void handlePostRoot() {
       updateSensorTopic(sensors[idx].id);
       needSave = true;
     }
+
     key = "en-" + sensors[idx].id;
     newValue = findData(content, key);
     bool newEnabled = newValue.equals("on");
     needSave = needSave || (sensors[idx].enabled == newEnabled);
     sensors[idx].enabled = newEnabled;
+
+    key = "cor-" + sensors[idx].id;
+    newValue = findData(content, key);
+    if (isNewValue(String(sensors[idx].correction, 2), newValue)) {
+      sensors[idx].correction = newValue.toFloat();
+      needSave = true;
+      needSensorFetch = true;
+    }
+
     ++idx;
   }
 
   if (needSave) saveConfig();
+  if (needSensorFetch) fetchSensorValues();
   
   espServer.sendHeader("Location", "/");
   espServer.send(303);
@@ -378,7 +443,7 @@ void loadConfigFile() {
     uint8_t idx = 0;
     while(f.available() && idx < MAX_SENSORS) {
       String line = f.readStringUntil('\n');
-      line.remove(line.length()-1); // remove CR 
+      line.remove(line.length()-1); // remove CR f
       debug_println("cfgline: '"+line+"'");
 
       if (line.indexOf("node=") >= 0) {
@@ -388,12 +453,23 @@ void loadConfigFile() {
         rootTopic = line.substring(sizeof("topic=")-1);
         debug_println("-> rootTopic='"+rootTopic+"'");
         updateSensorTopics();
+      } else if (line.indexOf("altitude=") >= 0) {
+        String altitude = line.substring(sizeof("altitude=")-1);
+        nodeAltitude = altitude.toFloat();
+        debug_println("-> altitude='"+altitude+"'");
       } else if (line.indexOf("sensor.enabled-") >= 0) {        
         int eq = line.indexOf("=");
         String id = line.substring(sizeof("sensor.enabled-") - 1, eq);
         String enabled = line.substring(eq+1);
         getSensorData(id).enabled = enabled.toInt();
         debug_println("-> Sensor("+id+").enabled="+enabled);
+        idx = numberOfSensors();
+      } else if (line.indexOf("sensor.correction-") >= 0) {        
+        int eq = line.indexOf("=");
+        String id = line.substring(sizeof("sensor.correction-") - 1, eq);
+        String correction = line.substring(eq+1);
+        getSensorData(id).correction = correction.toFloat();
+        debug_println("-> Sensor("+id+").correction="+correction);
         idx = numberOfSensors();
       } else if (line.indexOf("sensor-") >= 0) {        
         int eq = line.indexOf("=");
@@ -427,28 +503,7 @@ void loadConfig() {
   SPIFFS.end();
 }
 
-void fetchAndSendSensorValues() {
-  // request to all devices on the bus
-  dsSensors.requestTemperatures();
-
-  for (uint8_t i = 0; i < oneWireDeviceCount; ++i) {
-    char idbuf[17];
-    float tempC = dsSensors.getTempC(deviceAddresses[i]);
-    addr2hex(deviceAddresses[i], idbuf);
-    getSensorData(idbuf).value = String(tempC, 2);
-  }
-
-  if (bmeAddr.length() > 0) {
-    getSensorData(bmeAddr+"t").value = String(bme.readTemperature());
-    getSensorData(bmeAddr+"h").value = String(bme.readHumidity());
-    getSensorData(bmeAddr+"p").value = String(bme.seaLevelForAltitude(ALTITUDE, bme.readPressure()));
-  }
-
-  if (shAddr.length() > 0) {
-    getSensorData(shAddr+"h").value = String(sh.readHumidity());
-    getSensorData(shAddr+"t").value = String(sh.readTemperature());
-  }
-
+void sendMQTTData() {
   // measurand + location + node + sensor + value + fix + null
   // 20 + 30 + 30 + 20 + 20 + ",location=,node=,sensor= value=" + 1 => 100 + 23 + 1 = 144
   char dataLine[144]; 
@@ -551,7 +606,12 @@ void setupI2CSensors() {
   }
 }
 
-Ticker timer1(fetchAndSendSensorValues, FETCH_SENSORS_CYCLE_SEC * 1000);
+void mqttUpdate() {
+  fetchSensorValues();
+  sendMQTTData();
+}
+
+Ticker timer1(mqttUpdate, FETCH_SENSORS_CYCLE_SEC * 1000);
 
 void setup(void) {
   for(uint8_t i=0; i<MAX_SENSORS; ++i) {
@@ -562,6 +622,7 @@ void setup(void) {
     sensors[i].topic=""; 
     sensors[i].measurand = "";
     sensors[i].value = "";
+    sensors[i].correction = 0.0f;
   }
 
   // start serial port
@@ -592,6 +653,7 @@ void setup(void) {
   espServer.on("/node", HTTP_GET, handleGetNode);
   espServer.on("/sensors", HTTP_GET, handleGetSensors);
   espServer.on("/topic", HTTP_GET, handleGetTopic);
+  espServer.on("/altitude", HTTP_GET, handleGetAltitude);
 
   espServer.on("/", HTTP_POST, handlePostRoot);
 

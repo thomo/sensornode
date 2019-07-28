@@ -26,15 +26,26 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
   <table>
     <tr><th>Node</th><td><input id="node" type=text name="node" value="" size="20" maxlength="20"/></td><td class="note">Spaces and slashes are not supported!</td></tr>
     <tr><th>Topic Prefix</th><td><input id="topic" type=text name="topic" value="" size="20" maxlength="20"/></td><td class="note">Spaces and slashes are not supported, use a dot for hierarchy!!</td></tr>
+    <tr><th>Altitude</th><td><input id="altitude" type=text name="altitude" value="" size="7" maxlength="7"/></td><td class="note">in meters xxxx.x</td></tr>
   </table>
 	<div class="g">
 	<table>
-		<thead><tr><th>Active</th><th>Sensor Id</th><th>Type</th><th>Location</th><th>Measurand</th><th>Last Value</th></tr></thead>
+		<thead>
+      <tr>
+        <th>Active</th>
+        <th>Sensor Id</th>
+        <th>Type</th>
+        <th>Location</th>
+        <th>Measurand</th>
+        <th>Last Value</th>
+        <th>Correction (+/-)</th>
+      </tr>
+    </thead>
 		<tbody id="sensor-list">
     </tbody>
     <tfoot>
         <tr>
-        <td class="note" colspan="6">Spaces and slashes are not supported, use a dot for hierarchy!<br/>Topic prefix + location will be used as mqtt topic - dots are replaced by slashes.</td>
+        <td class="note" colspan="7">Spaces and slashes are not supported, use a dot for hierarchy!<br/>Topic prefix + location will be used as mqtt topic - dots are replaced by slashes.</td>
         </tr>
     </tfoot>
 	</table>
@@ -56,6 +67,11 @@ $(document).ready(function() {
       $('#topic').val(data.topic);
     });
     $.ajax({
+      url: "http://"+document.location.host+"/altitude"
+    }).then(function(data) {
+      $('#altitude').val(data.altitude);
+    });
+    $.ajax({
       url: "http://"+document.location.host+"/sensors"
     }).then(function(data) {
       for (var id in data.sensors) {
@@ -65,7 +81,8 @@ $(document).ready(function() {
           +"<td>"+data.sensors[id].type+"</td>"
           +"<td><input name='loc-"+id+"' size='30' maxlength='30' value='"+data.sensors[id].location+"'/></td>"
           +"<td>"+data.sensors[id].measurand+"</td>"
-          +"<td>"+data.sensors[id].value+"</td></tr>");
+          +"<td>"+data.sensors[id].value+"</td>"
+          +"<td><input name='cor-"+id+"' size='7' maxlength='7' value='"+data.sensors[id].correction+"'/></td></tr>");
       }
     });
 });
