@@ -64,7 +64,7 @@
 
 #define PAYLOAD_BUFFER_SIZE (1024+20+20+MAX_SENSORS*40) 
 
-#define MYDEBUG 1
+#define MYDEBUG 0
 #define debug_print(line) \
             do { if (MYDEBUG) Serial.print(line); } while (0)
 #define debug_println(line) \

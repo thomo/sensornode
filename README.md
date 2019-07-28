@@ -18,7 +18,7 @@ There are some values which are only configureable on compile time (in `main.cpp
 
 - DEFAULT_NODE_NAME (= F42-NODE) - used as WiFi SSID
 - MQTT_SERVER (= mqtt.thomo.de) - the MQTT server, you will have to use your own :wink:
-- ALTITUDE (= 282.0F) - your local altitude in meters, used to adjust the pressure measurement
+- ~~ALTITUDE (= 282.0F) - your local altitude in meters, used to adjust the pressure measurement~~ (configurable in the config dialog)
 - DEFAULT_ROOT_TOPIC (= "tmp") - the standard root topic
 - FETCH_SENSORS_CYCLE_SEC (= 10) - fetch the sensor values every 10 seconds
 - MAX_SENSORS (= 10) - number of supported sensors
@@ -28,6 +28,19 @@ There are some values which are only configureable on compile time (in `main.cpp
 The runtime configuration is done by using a configuration web page served by the node. Just enter *http://\<the node ip\>*
 
 ![Configuration page](SensorNode_ConfigPage.png "Configuration page")
+
+The config dialog allows you to enable/disable (aka activate) the connected sensors, only active sensor values are MQTT published.
+For each sensor a location can be defined and a correction value. The correction value is add/sub from the sensor value and is used to calibrate the sensor.
+
+*Note:* The displayed sensor value and the value published at MQTT already include the correction value.
+
+## API
+
+The Sensor Node offers some URIs
+* http://\<node-ip\>/node - the node name, as JSON data
+* http://\<node-ip\>/topic - the root topic, as JSON 
+* http://\<node-ip\>/altitude - the node altitude, as JSON 
+* http://\<node-ip\>/sensors - the sensor data, as JSON 
 
 ## MQTT Topic and Payload
 
