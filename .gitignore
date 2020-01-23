@@ -131,3 +131,31 @@ README.html
 .piolibdeps
 .clang_complete
 .gcc-flags.json
+
+### MPLabX ###
+#Ignore List for Microchips MPLabX IDE
+#Form of netbeans with vendor specific changes
+#Taken from zeha on GIST https://gist.github.com/zeha/5999375
+
+multiblink/*.d
+multiblink/*.pre
+multiblink/*.p1
+multiblink/*.lst
+multiblink/*.sym
+multiblink/*.obj
+multiblink/*.o
+multiblink/*.sdb
+multiblink/*.obj.dmp
+multiblink/html/
+multiblink/nbproject/private/
+multiblink/nbproject/Package-*.bash
+multiblink/build/
+multiblink/nbbuild/
+multiblink/dist/
+multiblink/nbdist/
+multiblink/nbactions.xml
+multiblink/nb-configuration.xml
+multiblink/funclist
+multiblink/nbproject/Makefile-*
+multiblink/disassembly/
+multiblink/*.map
