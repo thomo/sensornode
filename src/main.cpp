@@ -15,6 +15,7 @@
 #include <Adafruit_Si7021.h>
 
 #include <FS.h>
+#include <LittleFS.h>
 #include <Ticker.h>
 
 #include <PubSubClient.h>
@@ -254,11 +255,11 @@ String findData(const String& line, const String& key) {
 } 
 
 void saveConfig() {
-  if (!SPIFFS.begin()) {
+  if (!LittleFS.begin()) {
     Serial.println("Error while init SPIFFS.");
     return;
   }
-  File f = SPIFFS.open(CONFIG_FILE, "w");
+  File f = LittleFS.open(CONFIG_FILE, "w");
   if (!f) {
     Serial.println("File '"+String(CONFIG_FILE)+"' open to write failed");
   } else {
@@ -299,7 +300,7 @@ void saveConfig() {
     Serial.println("done.");
   }
 
-  SPIFFS.end();
+  LittleFS.end();
 }
 
 bool isNewValue(const String& oldValue, const String& newValue) {
@@ -422,7 +423,7 @@ void handleError() {
 }
 
 void loadConfigHtml() {
-  File f = SPIFFS.open(CONFIG_HTML, "r");
+  File f = LittleFS.open(CONFIG_HTML, "r");
   if (!f) {
     Serial.println("File '"+String(CONFIG_HTML)+"' not found/open failed");
   } else {
@@ -434,7 +435,7 @@ void loadConfigHtml() {
 }
 
 void loadConfigFile() {
-  File f = SPIFFS.open(CONFIG_FILE, "r");
+  File f = LittleFS.open(CONFIG_FILE, "r");
   if (!f) {
     Serial.println("File '"+String(CONFIG_FILE)+"' not found/open failed - use default values");
   } else {
@@ -490,7 +491,7 @@ void loadConfigFile() {
 
 void loadConfig() {
   debug_println("loadConfig:");
-  if (SPIFFS.begin()) {
+  if (LittleFS.begin()) {
     debug_println("Init SPIFFS - successful.");
   } else {
     Serial.println("Error while init SPIFFS.");
@@ -500,7 +501,7 @@ void loadConfig() {
   loadConfigHtml();
   loadConfigFile();
 
-  SPIFFS.end();
+  LittleFS.end();
 }
 
 void sendMQTTData() {
