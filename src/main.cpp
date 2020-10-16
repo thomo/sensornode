@@ -13,6 +13,7 @@
 
 #include <Adafruit_BME280.h>
 #include <Adafruit_Si7021.h>
+#include <Adafruit_HTU21DF.h>
 
 #include <FS.h>
 #include <LittleFS.h>
@@ -81,8 +82,11 @@ uint8_t oneWireDeviceCount = 0;
 String bmeAddr = "";
 Adafruit_BME280 bme; // I2C
 
-String shAddr = "";
-Adafruit_Si7021 sh = Adafruit_Si7021(); // I2C
+String si70xxAddr = "";
+Adafruit_Si7021 si70xx = Adafruit_Si7021(); // I2C
+
+String htu21Addr = "";
+Adafruit_HTU21DF htu21 = Adafruit_HTU21DF(); // I2C
 
 // to hold device addresses
 DeviceAddress* deviceAddresses = NULL;
@@ -206,9 +210,14 @@ void fetchSensorValues() {
     setSensorDataValue(bmeAddr+"p",bme.seaLevelForAltitude(nodeAltitude, bme.readPressure()));
   }
 
-  if (shAddr.length() > 0) {
-    setSensorDataValue(shAddr+"h",sh.readHumidity());
-    setSensorDataValue(shAddr+"t",sh.readTemperature());
+  if (si70xxAddr.length() > 0) {
+    setSensorDataValue(si70xxAddr+"h",si70xx.readHumidity());
+    setSensorDataValue(si70xxAddr+"t",si70xx.readTemperature());
+  }
+
+  if (htu21Addr.length() > 0) {
+    setSensorDataValue(htu21Addr+"h",htu21.readHumidity());
+    setSensorDataValue(htu21Addr+"t",htu21.readTemperature());
   }
 }
 
@@ -588,22 +597,35 @@ void setupI2CSensors() {
     addSensor(bmeAddr+"t", "BME280", "temperature");
   }
 
-  if (sh.begin()) {
+  if (si70xx.begin()) {
     String model = "";
-    switch(sh.getModel()) {
+    switch(si70xx.getModel()) {
       case SI_7013:
         model="Si7013"; break;
       case SI_7020:
         model="Si7020"; break;
       case SI_7021:
         model="Si7021"; break;
+      case SI_Engineering_Samples:
+        model="Si70SS"; break;
       default:
         model="Si70xx";
     }
     Serial.println("Found "+model+" sensor!");
-    shAddr = "40";
-    addSensor(shAddr+"h", model, "humidity");
-    addSensor(shAddr+"t", model, "temperature");
+    si70xxAddr = "40";
+    addSensor(si70xxAddr+"h", model, "humidity");
+    addSensor(si70xxAddr+"t", model, "temperature");
+  } else {
+    Serial.println("Si70xx not found!");
+  }
+
+  if (htu21.begin()) {    
+    Serial.println("Found HTU21 sensor!");
+    htu21Addr = "40";
+    addSensor(htu21Addr+"h", "HTU21", "humidity");
+    addSensor(htu21Addr+"t", "HTU21", "temperature");
+  } else {
+    Serial.println("HTU21 not found!");
   }
 }
 
