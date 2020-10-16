@@ -5,6 +5,8 @@
 #include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
 #include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+#include <ezTime.h>
+#include <PubSubClient.h>
 
 #define REQUIRESNEW false
 #define REQUIRESALARMS false
@@ -17,9 +19,10 @@
 
 #include <FS.h>
 #include <LittleFS.h>
+
 #include <Ticker.h>
 
-#include <PubSubClient.h>
+#include "disp.h"
 
 // +++++++++++++++++++
 
@@ -30,47 +33,37 @@
 
 #define FETCH_SENSORS_CYCLE_SEC 10
 
-#define ONE_WIRE_PIN 13
-#define I2C_SDA_PIN  14
-#define I2C_SCL_PIN  12
+#define ONE_WIRE_PIN 12
+#define I2C_SDA_PIN  4
+#define I2C_SCL_PIN  5
 
 #define CONFIG_HTML "/config.html"
 #define CONFIG_FILE "/config.cfg"
 #define MAX_SENSORS 10
 
-//                              " 30 " 
-#define SIZE_JSONK_ID          (1+30+1)
-
-//                              " 7 " : x
-#define SIZE_JSONKV_ENABLED    (1+7+1+1+1)
-//                              " 8 " : " 30 " 
-#define SIZE_JSONKV_LOCATION   (1+8+1+1+1+30+1)
-//                              " 4 " : " 30 " 
-#define SIZE_JSONKV_TYPE       (1+4+1+1+1+30+1)
-//                              " 9 " : " 30 " 
-#define SIZE_JSONKV_MEASURAND  (1+9+1+1+1+30+1)
-//                              " 5 " : " 20 " 
-#define SIZE_JSONKV_VALUE      (1+5+1+1+1+20+1)
-//                              " 10 " : " 7 " 
-#define SIZE_JSONKV_CORRECTION (1+10+1+1+1+7+1)
-//                              "___________"   :{  "______________": x   ,   "____":"___________"   ,   "_____":"______"   ,   "____":"____________"   ,   "_____":"_______"   ,   "_____":"____________"   }   ,
-#define SIZE_JSON_ONE_SENSOR   (SIZE_JSONK_ID + 2 + SIZE_JSONKV_ENABLED + 1 + SIZE_JSONKV_LOCATION + 1 + SIZE_JSONKV_TYPE + 1 + SIZE_JSONKV_MEASURAND + 1 + SIZE_JSONKV_VALUE + 1 + SIZE_JSONKV_CORRECTION + 1 + 1)
+// {"n":"12345678901234567890","t":"12345678901234567890","a":"1234567","d":1}
+// "123456789012345678901234567890":{"e":1,"l":"123456789012345678901234567890","t":"123456789012345678901234567890","m":"123456789012345678901234567890","v":"12345678901234567890","c":"1234567","d":1}
+#define SIZE_JSON_ONE_SENSOR   (202)
           
 #define SIZE_JSONV_SENSORS     (SIZE_JSON_ONE_SENSOR * MAX_SENSORS)
 
-//                              {"node"     : " 20 "}
-//                              {"topic"    : " 20 "}
-//                              {"altitude" : " 7 "}
-//                              { "sensors" : { SIZE_JSONV_SENSORS } }
-#define SIZE_JSON_BUFFER       (1+1+  7  +1+1+1+SIZE_JSONV_SENSORS+1+1)
+#define SIZE_JSON_BUFFER       (1+1+1+1+1+1+SIZE_JSONV_SENSORS+1+1)
 
-#define PAYLOAD_BUFFER_SIZE (1024+20+20+MAX_SENSORS*40) 
+#define PAYLOAD_BUFFER_SIZE    (1024+20+20+MAX_SENSORS*40) 
+
+#define FIXED_FONT 2
 
 #define MYDEBUG 0
 #define debug_print(line) \
             do { if (MYDEBUG) Serial.print(line); } while (0)
 #define debug_println(line) \
             do { if (MYDEBUG) Serial.println(line); } while (0)
+#define debug_printf(frmt, ...) \
+            do { if (MYDEBUG) Serial.printf(frmt, __VA_ARGS__); } while (0)
+
+// --- SENSORS ---
+// to hold device addresses
+DeviceAddress* deviceAddresses = NULL;
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_PIN);
@@ -88,14 +81,15 @@ Adafruit_Si7021 si70xx = Adafruit_Si7021(); // I2C
 String htu21Addr = "";
 Adafruit_HTU21DF htu21 = Adafruit_HTU21DF(); // I2C
 
-// to hold device addresses
-DeviceAddress* deviceAddresses = NULL;
+// --- Display --- 
+TFT_eSPI tft = TFT_eSPI();
 
+// --- Network ---
 WiFiManager wifiManager;
-
 ESP8266WebServer espServer(80);
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
+Timezone myTZ;
 
 #define SIZE_WEBSENDBUFFER (SIZE_JSON_BUFFER)
 char webSendBuffer[SIZE_WEBSENDBUFFER] = "";
@@ -104,6 +98,9 @@ String configHtml = "";
 String nodeName = DEFAULT_NODE_NAME;
 String rootTopic = DEFAULT_ROOT_TOPIC;
 float nodeAltitude = 282.0f;
+
+boolean hasDisplay = false;
+String showSensor = "";
 
 struct SensorData {
   bool enabled;
@@ -130,6 +127,8 @@ SensorData tmpSensor = {
 SensorData sensors[MAX_SENSORS]; 
 
 // ------------------------------------------------------------------------------------------------
+
+void setupDisplay();
 
 void addr2hex(DeviceAddress da, char hex[17]) {
   snprintf(hex, 17, "%02X%02X%02X%02X%02X%02X%02X%02X", da[0], da[1], da[2], da[3], da[4], da[5], da[6], da[7]);
@@ -286,7 +285,19 @@ void saveConfig() {
     line = "altitude=" + String(nodeAltitude, 2);
     f.println(line);
     debug_println("<- " + line);
-    
+
+    if (hasDisplay) {
+      line = "hasDisplay";
+      f.println(line);
+      debug_println("<- " + line);
+    }
+
+    if (showSensor.length() > 0) {
+      line = "show=" + showSensor;
+      f.println(line);
+      debug_println("<- " + line);
+    }
+
     uint8_t idx = 0;
     while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
       line = "sensor-" + sensors[idx].id + "=" + sensors[idx].location;
@@ -320,18 +331,14 @@ void handleGetRoot() {
   espServer.send(200, "text/html", configHtml);   
 }
 
-void handleGetNode() {
-  snprintf(webSendBuffer, SIZE_WEBSENDBUFFER, "{\"node\":\"%s\"}", nodeName.c_str());
-  espServer.send(200, "application/json", webSendBuffer);   
-}
-
-void handleGetTopic() {
-  snprintf(webSendBuffer, SIZE_WEBSENDBUFFER, "{\"topic\":\"%s\"}", rootTopic.c_str());
-  espServer.send(200, "application/json", webSendBuffer);   
-}
-
-void handleGetAltitude() {
-  snprintf(webSendBuffer, SIZE_WEBSENDBUFFER, "{\"altitude\":\"%-.2f\"}", nodeAltitude);
+void handleGetConfig() {
+  snprintf(webSendBuffer, SIZE_WEBSENDBUFFER, 
+    "{\"n\":\"%s\",\"t\":\"%s\",\"a\":\"%-.2f\",\"d\":%d}", 
+    nodeName.c_str(),
+    rootTopic.c_str(),
+    nodeAltitude,
+    hasDisplay
+  );
   espServer.send(200, "application/json", webSendBuffer);   
 }
 
@@ -346,7 +353,8 @@ void handleGetSensors() {
   uint8_t idx = 0;
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
     snprintf(oneSensorBuf, SIZE_JSON_ONE_SENSOR, 
-            "%s\"%s\":{\"enabled\":%d,\"location\":\"%s\",\"type\":\"%s\",\"measurand\":\"%s\",\"value\":\"%s\",\"correction\":\"%-.2f\"}", 
+            //     keys: e, l, t, m, v, c, s
+            "%s\"%s\":{\"e\":%d,\"l\":\"%s\",\"t\":\"%s\",\"m\":\"%s\",\"v\":\"%s\",\"c\":\"%-.2f\",\"s\":%d}", 
             sep, 
             sensors[idx].id.c_str(), 
             sensors[idx].enabled, 
@@ -354,8 +362,8 @@ void handleGetSensors() {
             sensors[idx].type.c_str(), 
             sensors[idx].measurand.c_str(), 
             sensors[idx].value.c_str(),
-            sensors[idx].correction
-            );
+            sensors[idx].correction,
+            showSensor.equals(sensors[idx].id));
     sep[0]=',';
     strncat(webSendBuffer, oneSensorBuf, SIZE_WEBSENDBUFFER - strlen(webSendBuffer));
     ++idx;
@@ -393,6 +401,13 @@ void handlePostRoot() {
     needSave = true;
   }
 
+  newValue = findData(content, "hasDisplay");
+  if (hasDisplay != (newValue.length() > 0)) {
+    hasDisplay = newValue.length() > 0;
+    needSave = true;
+    setupDisplay();
+  }
+
   uint8_t idx = 0;
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
     String key = "loc-" + sensors[idx].id;
@@ -417,6 +432,13 @@ void handlePostRoot() {
       needSensorFetch = true;
     }
 
+    key = "show";
+    newValue = findData(content, key);
+    if (isNewValue(showSensor, newValue)) {
+      showSensor = newValue;
+      needSave = true;
+    }
+
     ++idx;
   }
 
@@ -432,6 +454,7 @@ void handleError() {
 }
 
 void loadConfigHtml() {
+  configHtml = "";
   File f = LittleFS.open(CONFIG_HTML, "r");
   if (!f) {
     Serial.println("File '"+String(CONFIG_HTML)+"' not found/open failed");
@@ -467,7 +490,13 @@ void loadConfigFile() {
         String altitude = line.substring(sizeof("altitude=")-1);
         nodeAltitude = altitude.toFloat();
         debug_println("-> altitude='"+altitude+"'");
-      } else if (line.indexOf("sensor.enabled-") >= 0) {        
+      } else if (line.indexOf("hasDisplay") >= 0) {
+        hasDisplay = true;
+        debug_println("-> hasDisplay");
+      } else if (line.indexOf("show") >= 0) {
+        showSensor = line.substring(sizeof("show=")-1);
+        debug_println("-> show='" + showSensor + "'");
+      } else if (line.indexOf("sensor.enabled-") >= 0) {
         int eq = line.indexOf("=");
         String id = line.substring(sizeof("sensor.enabled-") - 1, eq);
         String enabled = line.substring(eq+1);
@@ -616,7 +645,7 @@ void setupI2CSensors() {
     addSensor(si70xxAddr+"h", model, "humidity");
     addSensor(si70xxAddr+"t", model, "temperature");
   } else {
-    Serial.println("Si70xx not found!");
+    Serial.println("No Si70xx sensor found.");
   }
 
   if (htu21.begin()) {    
@@ -625,16 +654,52 @@ void setupI2CSensors() {
     addSensor(htu21Addr+"h", "HTU21", "humidity");
     addSensor(htu21Addr+"t", "HTU21", "temperature");
   } else {
-    Serial.println("HTU21 not found!");
+    Serial.println("No HTU21 sensor found.");
   }
 }
 
-void mqttUpdate() {
-  fetchSensorValues();
-  sendMQTTData();
+void setupDisplay() {
+  if (hasDisplay) {
+    tft.init();
+    tft.setRotation(1);
+
+    tft.fillScreen(TFT_WHITE);
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_BLACK);
+  }
 }
 
-Ticker timer1(mqttUpdate, FETCH_SENSORS_CYCLE_SEC * 1000);
+void update() {
+  fetchSensorValues();
+  sendMQTTData();
+
+  if (hasDisplay) {
+
+    char inVal[9] = "---.-°C"; // -xx.x°C
+    if (showSensor.length() > 0) {
+      SensorData sd = getSensorData(showSensor);
+      float val = ::atof(sd.value.c_str());
+      if (sd.measurand == "temperature") {
+        sprintf(inVal, "%-.1f°C", val);
+      } else if (sd.measurand == "humidity") {
+        sprintf(inVal, "%-.1f%%", val);
+      } else {
+        sprintf(inVal, "???");
+      }
+    }
+
+    char outTemp[9] = "---.-°C"; // -xx.x°C
+    // sprintf(outTemp, "%-.1f°C", outTempf);
+
+    char timebuf[6];
+    sprintf(timebuf, "%02d:%02d", myTZ.hour(), myTZ.minute());
+    char datebuf[7];
+    sprintf(datebuf, "%02d.%02d.", myTZ.day(), myTZ.month());
+    updateDisplay(tft, inVal, outTemp, timebuf, datebuf);
+  }
+}
+
+Ticker timer1(update, FETCH_SENSORS_CYCLE_SEC * 1000);
 
 void setup(void) {
   for(uint8_t i=0; i<MAX_SENSORS; ++i) {
@@ -651,11 +716,21 @@ void setup(void) {
   // start serial port
   Serial.begin(115200);
 
+  setupOneWireSensors();
+  setupI2CSensors();
+
+  loadConfig();
+
+  setupDisplay();
+
   // autoconnect timeout: 3min
   wifiManager.setConfigPortalTimeout(180);
   wifiManager.setDebugOutput(false);
 
   Serial.print("Try WIFI connect ... ");
+  if (hasDisplay) {
+    tft.drawString("Try WIFI connect ... ", 10, 10, FIXED_FONT);
+  }
   if(!wifiManager.autoConnect(DEFAULT_NODE_NAME)) {
     Serial.println("failed to connect and hit timeout");
     //reset and try again, or maybe put it to deep sleep
@@ -664,19 +739,17 @@ void setup(void) {
   } 
 
   IPAddress myAddress = WiFi.localIP();
-  Serial.print("done. IP: ");
-  Serial.println(myAddress);
+  Serial.println("done. IP: " + myAddress.toString());
+  if (hasDisplay) {
+    tft.drawString("done. IP: "+ myAddress.toString(), 10, 40, FIXED_FONT);
+  }
 
-  setupOneWireSensors();
-  setupI2CSensors();
-
-  loadConfig();
+  waitForSync();
+	myTZ.setLocation(F("de"));
 
   espServer.on("/", HTTP_GET, handleGetRoot);
-  espServer.on("/node", HTTP_GET, handleGetNode);
+  espServer.on("/config", HTTP_GET, handleGetConfig);
   espServer.on("/sensors", HTTP_GET, handleGetSensors);
-  espServer.on("/topic", HTTP_GET, handleGetTopic);
-  espServer.on("/altitude", HTTP_GET, handleGetAltitude);
 
   espServer.on("/", HTTP_POST, handlePostRoot);
 
@@ -698,5 +771,5 @@ void loop(void) {
   }
   mqttClient.loop();
 
-  timer1.update();
+  timer1.update(); 
  }
