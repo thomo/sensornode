@@ -15,44 +15,39 @@
 
 
 void ledOnWait(void) {
-    __delay_ms(10);
+    __delay_ms(50);
 }
 
 void ledOffWait(void) {
-    __delay_ms(15 * 1000 / 4);
+    __delay_ms(400);
 }
 
-unsigned char onePinHigh;
+unsigned char onePinLow;
 
 void InitApp(void) {
     
-    // GP<2:0> are digital
+    // GP<2:0> are digital IO
     CMCON = 0x07;
             
-    // GP<4,2:0> are outputs
-    TRISIO = 0b00100000;
-    GPIO = 0x00;
+    // GP<2:0> are outputs
+    TRISIO = 0b00111000;
+    GPIO = 0x07;
     
-    onePinHigh = 0b00000001;
+    onePinLow = 0b11111110;
 }
 
 void LoopApp(void) {
-    if (onePinHigh == 0b00001000) {
-       onePinHigh *= 2;    
+    if (onePinLow == 0b11110111) {
+        onePinLow = 0b11111110;
     }
     
-    if (onePinHigh == 0b00100000) {
-        onePinHigh = 0b00000001;
-    }
-    
-    GPIO = onePinHigh;
+    GPIO = onePinLow;
     ledOnWait();
-    GPIO = 0x00;
+    GPIO = 0x07;
     ledOffWait();
     
     
-    onePinHigh *= 2;    
-
-    
+    onePinLow *= 2;    
+    onePinLow += 1;
 }
 
