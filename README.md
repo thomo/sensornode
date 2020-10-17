@@ -5,8 +5,9 @@ A ESP8266 based solution with support for
 - DS18B20 1-Wire temperature sensor
 - BME280 humidity, pressure, temperature sensor (I2C) - Note: temperature is measured in-chip, so it is usually too inaccurate to measure the environment temperature
 - Si7021 humidity, temperatur sensor (I2C)
+- HTU21 humidity, temperatur sensor (I2C)
 
-The software will determine which sensors are connected. Because of the fixed I2C addresses on the sensors only 1 BME and 1 Si7021 sensors are supported, but multiple 1-Wire sensors.
+The software will determine which sensors are connected. Because of the fixed I2C addresses on the sensors only 1 BME and 1 Si7021/HTU21 sensors are supported, but multiple 1-Wire sensors.
 
 The software provides an configuration web page where the sensors can be enabled and an location can be specified.
 
@@ -37,9 +38,7 @@ For each sensor a location can be defined and a correction value. The correction
 ## API
 
 The Sensor Node offers some URIs
-* http://\<node-ip\>/node - the node name, as JSON data
-* http://\<node-ip\>/topic - the root topic, as JSON 
-* http://\<node-ip\>/altitude - the node altitude, as JSON 
+* http://\<node-ip\>/config - the node name, root topic, altitude, and display flag, as JSON data
 * http://\<node-ip\>/sensors - the sensor data, as JSON 
 
 ## MQTT Topic and Payload
@@ -66,3 +65,11 @@ It is a board to be used with the sensor node code. The board is designed to be 
 ![PCB bottom layer](board/SensorNodeUsb_Bottom.png "SensorNodeUsb PCB bottom layer")
 
 If you want to order some pcb boards you can use this link to [Aisler](https://aisler.net/p/KDLFHCIK).
+
+
+## Fonts/Icons
+
+- Font: Landasans - https://www.fontspace.com/search?q=landasans
+- Icons:
+  - https://iconarchive.com/search?q=weather&page=6
+  - http://paomedia.github.io/small-n-flat/
