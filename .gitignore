@@ -1,4 +1,7 @@
 
+include/secret.h
+iconsource/
+
 # Created by https://www.gitignore.io/api/osx,c++,linux,windows,platformio,visualstudiocode
 # Edit at https://www.gitignore.io/?templates=osx,c++,linux,windows,platformio,visualstudiocode
 

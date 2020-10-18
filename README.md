@@ -52,7 +52,28 @@ The node will acquire the sensor measurements every X seconds - wether or not th
 
   E.g.: for the selected DS18B20 sensor above the payload is `temperature,location=upstairs.workroom,node=f42,sensor=DS18B20 value=25.25`
 
-## PCB designs
+## Circuit and PCB designs
+
+### Sensors
+
+- I2C Sensors
+  - SDA -> GPIO4 (D2)
+  - SCL -> GPIO5 (D1)
+- 1wire
+  - DATA -> GPIO0 (D3)
+
+### Display
+- ST7735 -> ESP8266
+  - 1 - RST -> RST or +3V3
+  - 2 - CS  -> GPIO15 (D8)  
+  - 3 - D/C -> GPIO2 (D4)
+  - 4 - DIN -> GPI13 (D7)
+  - 5 - CLK -> GPI14 (D5)
+  - 6 - VCC -> +3V3
+  - 7 - BL  -> +3V3
+  - 8 - GND -> GND
+
+__Note:__ _GPIO12 (D6) is not connected but is part of the SPI interface._
 
 ### SensorNodeUsb
 

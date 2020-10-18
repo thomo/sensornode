@@ -11,6 +11,6 @@
 
 #define DISP_GRID 0
 
-void updateDisplay(TFT_eSPI &tft, const char* inTemp, const char* outTemp, const char* timebuf, const char* datebuf);
+void display(TFT_eSPI &tft, const char* inTemp, const char* outTemp, const char* icon, const char* timebuf, const char* datebuf);
 
 #endif

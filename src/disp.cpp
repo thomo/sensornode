@@ -33,7 +33,7 @@ void drawBmp(TFT_eSPI &tft, const char *filename, int16_t x, int16_t y) {
   bmpFS = LittleFS.open(filename, "r");
 
   if (!bmpFS) {
-    Serial.print("File not found");
+    Serial.printf("File not found: %s\n", filename);
     return;
   }
 
@@ -99,7 +99,7 @@ void drawBmp(TFT_eSPI &tft, const char *filename, int16_t x, int16_t y) {
   LittleFS.end();
 }
 
-void updateDisplay(TFT_eSPI &tft, const char* inTemp, const char* outTemp, const char* timebuf, const char* datebuf) {
+void display(TFT_eSPI &tft, const char* inTemp, const char* outTemp, const char* icon, const char* timebuf, const char* datebuf) {
   tft.fillScreen(TFT_WHITE);
   tft.setTextSize(1);
   tft.setTextColor(TFT_BLACK);
@@ -127,7 +127,7 @@ void updateDisplay(TFT_eSPI &tft, const char* inTemp, const char* outTemp, const
 
   }
 
-  drawBmp(tft, "out_d.bmp", 12,  7);
+  drawBmp(tft, icon, 11, 5);
   drawBmp(tft, "in_d.bmp",  12, 53);
 
   tft.drawLine(15, 92, 144, 92, TFT_BLUE);

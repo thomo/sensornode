@@ -22,8 +22,6 @@
 
 #include <Ticker.h>
 
-#include "disp.h"
-
 // +++++++++++++++++++
 
 #define DEFAULT_NODE_NAME "F42-NODE"
@@ -32,8 +30,17 @@
 #define DEFAULT_ROOT_TOPIC "tmp"
 
 #define FETCH_SENSORS_CYCLE_SEC 10
+#define FETCH_WEATHER_FORCAST_SEC 15
+// (5*60)
 
-#define ONE_WIRE_PIN 12
+// +++++++++++++++++++
+
+#include "weather.h"
+#include "disp.h"
+
+// +++++++++++++++++++
+
+#define ONE_WIRE_PIN 0
 #define I2C_SDA_PIN  4
 #define I2C_SCL_PIN  5
 
@@ -62,9 +69,6 @@
             do { if (MYDEBUG) Serial.printf(frmt, __VA_ARGS__); } while (0)
 
 // --- SENSORS ---
-// to hold device addresses
-DeviceAddress* deviceAddresses = NULL;
-
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_PIN);
 
@@ -91,6 +95,8 @@ WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 Timezone myTZ;
 
+WeatherClient wc = WeatherClient(&espClient);
+
 #define SIZE_WEBSENDBUFFER (SIZE_JSON_BUFFER)
 char webSendBuffer[SIZE_WEBSENDBUFFER] = "";
 
@@ -104,6 +110,7 @@ String showSensor = "";
 
 struct SensorData {
   bool enabled;
+  DeviceAddress addr;
   String id;
   String type;
   String location;
@@ -114,7 +121,8 @@ struct SensorData {
 };
 
 SensorData tmpSensor = { 
-  .enabled =false, 
+  .enabled =false,
+  .addr = {0}, 
   .id="", 
   .type="", 
   .location="", 
@@ -130,7 +138,7 @@ SensorData sensors[MAX_SENSORS];
 
 void setupDisplay();
 
-void addr2hex(DeviceAddress da, char hex[17]) {
+void addr2hex(const uint8_t* da, char hex[17]) {
   snprintf(hex, 17, "%02X%02X%02X%02X%02X%02X%02X%02X", da[0], da[1], da[2], da[3], da[4], da[5], da[6], da[7]);
 }
 
@@ -197,10 +205,8 @@ void fetchSensorValues() {
   dsSensors.requestTemperatures();
 
   for (uint8_t i = 0; i < oneWireDeviceCount; ++i) {
-    char idbuf[17];
-    float tempC = dsSensors.getTempC(deviceAddresses[i]);
-    addr2hex(deviceAddresses[i], idbuf);
-    setSensorDataValue(idbuf, tempC);
+    float tempC = dsSensors.getTempC(sensors[i].addr);
+    setSensorDataValue(sensors[i].id, tempC);
   }
 
   if (bmeAddr.length() > 0) {
@@ -445,6 +451,8 @@ void handlePostRoot() {
   if (needSave) saveConfig();
   if (needSensorFetch) fetchSensorValues();
   
+  if (needSave || needSensorFetch) 
+
   espServer.sendHeader("Location", "/");
   espServer.send(303);
 }
@@ -530,9 +538,9 @@ void loadConfigFile() {
 void loadConfig() {
   debug_println("loadConfig:");
   if (LittleFS.begin()) {
-    debug_println("Init SPIFFS - successful.");
+    debug_println("Init LittleFS - successful.");
   } else {
-    Serial.println("Error while init SPIFFS.");
+    Serial.println("Error while init LittleFS.");
     return;
   }
 
@@ -590,21 +598,21 @@ void setupOneWireSensors() {
   oneWireDeviceCount = dsSensors.getDeviceCount();
 
   // locate devices on the bus
-  Serial.print("Found ");
-  Serial.print(oneWireDeviceCount);
-  Serial.println(" OneWire devices.");
+  Serial.printf("Found %d OneWire devices.\n", oneWireDeviceCount);
 
-  deviceAddresses = (DeviceAddress*) calloc(oneWireDeviceCount, sizeof(DeviceAddress));
-
+  DeviceAddress addr;
   // search for devices on the bus and assign based on an index.
   for (uint8_t i = 0; i < oneWireDeviceCount; ++i) {
-    if (!dsSensors.getAddress(deviceAddresses[i], i)) {
+    if (!dsSensors.getAddress(addr, i)) {
       Serial.print("Unable to find address for Device "); 
       Serial.print(i, DEC);
     } else {
       char hexbuf[17];
-      addr2hex(deviceAddresses[i], hexbuf);
+      addr2hex(addr, hexbuf);
       addSensor(hexbuf, "DS18B20", "temperature");
+      for (uint8_t b = 0; b < 8; ++b) {
+        sensors[i].addr[b] = addr[b];
+      }
     }
   }
 }
@@ -648,7 +656,7 @@ void setupI2CSensors() {
     Serial.println("No Si70xx sensor found.");
   }
 
-  if (htu21.begin()) {    
+  if (si70xxAddr.length() == 0 && htu21.begin()) { // si70xx and htu21 have the same i2c addr 0x40
     Serial.println("Found HTU21 sensor!");
     htu21Addr = "40";
     addSensor(htu21Addr+"h", "HTU21", "humidity");
@@ -669,12 +677,14 @@ void setupDisplay() {
   }
 }
 
-void update() {
-  fetchSensorValues();
-  sendMQTTData();
-
+void fetchWeatherData() {
   if (hasDisplay) {
+    wc.readWeatherData();
+  }
+}
 
+void updateDisplay() {
+  if (hasDisplay) {
     char inVal[9] = "---.-°C"; // -xx.x°C
     if (showSensor.length() > 0) {
       SensorData sd = getSensorData(showSensor);
@@ -689,17 +699,26 @@ void update() {
     }
 
     char outTemp[9] = "---.-°C"; // -xx.x°C
-    // sprintf(outTemp, "%-.1f°C", outTempf);
+    if (wc.isValid()) {
+      sprintf(outTemp, "%-.1f°C", wc.getTemperature());
+    }
 
     char timebuf[6];
     sprintf(timebuf, "%02d:%02d", myTZ.hour(), myTZ.minute());
     char datebuf[7];
     sprintf(datebuf, "%02d.%02d.", myTZ.day(), myTZ.month());
-    updateDisplay(tft, inVal, outTemp, timebuf, datebuf);
+    display(tft, inVal, outTemp, wc.getIcon().c_str(), timebuf, datebuf);
   }
 }
 
+void update() {
+  fetchSensorValues();
+  sendMQTTData();
+  updateDisplay();
+}
+
 Ticker timer1(update, FETCH_SENSORS_CYCLE_SEC * 1000);
+Ticker timer2(fetchWeatherData, FETCH_WEATHER_FORCAST_SEC * 1000);
 
 void setup(void) {
   for(uint8_t i=0; i<MAX_SENSORS; ++i) {
@@ -715,6 +734,7 @@ void setup(void) {
 
   // start serial port
   Serial.begin(115200);
+  Serial.println();
 
   setupOneWireSensors();
   setupI2CSensors();
@@ -729,7 +749,7 @@ void setup(void) {
 
   Serial.print("Try WIFI connect ... ");
   if (hasDisplay) {
-    tft.drawString("Try WIFI connect ... ", 10, 10, FIXED_FONT);
+    tft.drawString("Try WIFI connect ... ", 10, 5, FIXED_FONT);
   }
   if(!wifiManager.autoConnect(DEFAULT_NODE_NAME)) {
     Serial.println("failed to connect and hit timeout");
@@ -741,9 +761,12 @@ void setup(void) {
   IPAddress myAddress = WiFi.localIP();
   Serial.println("done. IP: " + myAddress.toString());
   if (hasDisplay) {
-    tft.drawString("done. IP: "+ myAddress.toString(), 10, 40, FIXED_FONT);
+    tft.drawString("done. IP: "+ myAddress.toString(), 10, 5+12, FIXED_FONT);
   }
 
+  if (hasDisplay) {
+    tft.drawString("Sync with NTP ...", 10, 5+12+12, FIXED_FONT);
+  }
   waitForSync();
 	myTZ.setLocation(F("de"));
 
@@ -761,6 +784,9 @@ void setup(void) {
   mqttClient.setServer(MQTT_SERVER, 1883);
   
   timer1.start();
+  timer2.start();
+
+  fetchWeatherData();
 }
 
 void loop(void) { 
@@ -772,4 +798,5 @@ void loop(void) {
   mqttClient.loop();
 
   timer1.update(); 
+  timer2.update(); 
  }
