@@ -93,4 +93,5 @@ If you want to order some pcb boards you can use this link to [Aisler](https://a
 - Font: Landasans - https://www.fontspace.com/search?q=landasans
 - Icons:
   - https://iconarchive.com/search?q=weather&page=6
+  - https://www.elegantthemes.com/blog/freebie-of-the-week/beautiful-flat-icons-for-free
   - http://paomedia.github.io/small-n-flat/

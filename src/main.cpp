@@ -30,7 +30,7 @@
 #define DEFAULT_ROOT_TOPIC "tmp"
 
 #define FETCH_SENSORS_CYCLE_SEC 10
-#define FETCH_WEATHER_FORCAST_SEC 15
+#define FETCH_WEATHER_FORCAST_SEC (5*60)
 // (5*60)
 
 // +++++++++++++++++++
@@ -697,17 +697,19 @@ void updateDisplay() {
         sprintf(inVal, "???");
       }
     }
-
+    
+    String outIcon = "wait.bmp";
     char outTemp[9] = "---.-°C"; // -xx.x°C
     if (wc.isValid()) {
       sprintf(outTemp, "%-.1f°C", wc.getTemperature());
+      outIcon = wc.getIcon();
     }
 
     char timebuf[6];
     sprintf(timebuf, "%02d:%02d", myTZ.hour(), myTZ.minute());
     char datebuf[7];
     sprintf(datebuf, "%02d.%02d.", myTZ.day(), myTZ.month());
-    display(tft, inVal, outTemp, wc.getIcon().c_str(), timebuf, datebuf);
+    display(tft, inVal, outTemp, outIcon.c_str(), timebuf, datebuf);
   }
 }
 
