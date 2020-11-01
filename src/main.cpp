@@ -146,6 +146,7 @@ SensorData sensors[MAX_SENSORS];
 // ------------------------------------------------------------------------------------------------
 
 void setupDisplay();
+void updateDisplay();
 
 void addr2hex(const uint8_t* da, char hex[17]) {
   snprintf(hex, 17, "%02X%02X%02X%02X%02X%02X%02X%02X", da[0], da[1], da[2], da[3], da[4], da[5], da[6], da[7]);
@@ -465,7 +466,7 @@ void handlePostRoot() {
   if (needSave) saveConfig();
   if (needSensorFetch) fetchSensorValues();
   
-  if (needSave || needSensorFetch) 
+  if (needSave || needSensorFetch) updateDisplay();
 
   espServer.sendHeader("Location", "/");
   espServer.send(303);
