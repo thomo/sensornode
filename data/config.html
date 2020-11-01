@@ -17,6 +17,7 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
 .c th,.c td{text-align:left}
 .c .note{font-style:italic}
 .c .lastrow{margin:5px 15px;text-align:right}
+.c #tr_display{display: none;}
 </style>
 </head>
 <body>
@@ -27,7 +28,7 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
     <tr><th>Node</th><td><input id="node" type=text name="node" value="" size="20" maxlength="20"/></td><td class="note">Spaces and slashes are not supported!</td></tr>
     <tr><th>Topic Prefix</th><td><input id="topic" type=text name="topic" value="" size="20" maxlength="20"/></td><td class="note">Spaces and slashes are not supported, use a dot for hierarchy!!</td></tr>
     <tr><th>Altitude</th><td><input id="altitude" type=text name="altitude" value="" size="7" maxlength="7"/></td><td class="note">in meters xxxx.x</td></tr>
-    <tr><th>Display</th><td><input id="display" type='checkbox' name='hasDisplay')/></td><td class="note"></td></tr>
+    <tr id="tr_display"><th>Display</th><td><input id="display" type='checkbox' name='hasDisplay')/></td><td class="note"></td></tr>
   </table>
 	<div class="g">
 	<table>
@@ -61,6 +62,7 @@ $(document).ready(function() {
     $.ajax({
       url: "http://"+document.location.host+"/config"
     }).then(function(data) {
+      $('#tr_display').prop('display', data.v > 1);
       $('#node').val(data.n);
       $('#topic').val(data.t);
       $('#altitude').val(data.a);

@@ -24,14 +24,17 @@
 
 // +++++++++++++++++++
 
+#ifndef SENSORNODE_VERSION
+#define SENSORNODE_VERSION 1
+#endif
+
 #define DEFAULT_NODE_NAME "F42-NODE"
 #define MQTT_SERVER "mqtt.thomo.de"
 
 #define DEFAULT_ROOT_TOPIC "tmp"
 
-#define FETCH_SENSORS_CYCLE_SEC 10
+#define FETCH_SENSORS_CYCLE_SEC 30
 #define FETCH_WEATHER_FORCAST_SEC (5*60)
-// (5*60)
 
 // +++++++++++++++++++
 
@@ -39,7 +42,7 @@
 #include "disp.h"
 
 // +++++++++++++++++++
-#ifdef TFT_ENABLED
+#if SENSORNODE_VERSION > 1
 #define ONE_WIRE_PIN 0
 #define I2C_SDA_PIN  4
 #define I2C_SCL_PIN  5
@@ -89,6 +92,11 @@ String htu21Addr = "";
 Adafruit_HTU21DF htu21 = Adafruit_HTU21DF(); // I2C
 
 // --- Display --- 
+#if SENSORNODE_VERSION > 1
+boolean hasDisplay = true;
+#else
+boolean hasDisplay = false;
+#endif
 TFT_eSPI tft = TFT_eSPI();
 
 // --- Network ---
@@ -107,7 +115,6 @@ String nodeName = DEFAULT_NODE_NAME;
 String rootTopic = DEFAULT_ROOT_TOPIC;
 float nodeAltitude = 282.0f;
 
-boolean hasDisplay = false;
 String showSensor = "";
 
 struct SensorData {
@@ -341,7 +348,8 @@ void handleGetRoot() {
 
 void handleGetConfig() {
   snprintf(webSendBuffer, SIZE_WEBSENDBUFFER, 
-    "{\"n\":\"%s\",\"t\":\"%s\",\"a\":\"%-.2f\",\"d\":%d}", 
+    "{\"v\":%d,\"n\":\"%s\",\"t\":\"%s\",\"a\":\"%-.2f\",\"d\":%d}", 
+    SENSORNODE_VERSION,
     nodeName.c_str(),
     rootTopic.c_str(),
     nodeAltitude,
@@ -409,12 +417,16 @@ void handlePostRoot() {
     needSave = true;
   }
 
+#if SENSORNODE_VERSION > 1
   newValue = findData(content, "hasDisplay");
   if (hasDisplay != (newValue.length() > 0)) {
     hasDisplay = newValue.length() > 0;
     needSave = true;
     setupDisplay();
   }
+#else
+  hasDisplay = false;
+#endif
 
   uint8_t idx = 0;
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
@@ -501,8 +513,12 @@ void loadConfigFile() {
         nodeAltitude = altitude.toFloat();
         debug_println("-> altitude='"+altitude+"'");
       } else if (line.indexOf("hasDisplay") >= 0) {
+#if SENSORNODE_VERSION > 1
         hasDisplay = true;
         debug_println("-> hasDisplay");
+#else
+        hasDisplay = false;
+#endif
       } else if (line.indexOf("show") >= 0) {
         showSensor = line.substring(sizeof("show=")-1);
         debug_println("-> show='" + showSensor + "'");
