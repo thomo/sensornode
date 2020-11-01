@@ -33,9 +33,6 @@
 
 #define DEFAULT_ROOT_TOPIC "tmp"
 
-#define FETCH_SENSORS_CYCLE_SEC 30
-#define FETCH_WEATHER_FORCAST_SEC (5*60)
-
 // +++++++++++++++++++
 
 #include "weather.h"
@@ -73,6 +70,10 @@
             do { if (MYDEBUG) Serial.println(line); } while (0)
 #define debug_printf(frmt, ...) \
             do { if (MYDEBUG) Serial.printf(frmt, __VA_ARGS__); } while (0)
+
+// --- update cadence ---
+uint16_t updateSensorsTimeout = 30;
+uint16_t updateWeatherForecastTimeout = 5*60;
 
 // --- SENSORS ---
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
@@ -145,8 +146,13 @@ SensorData sensors[MAX_SENSORS];
 
 // ------------------------------------------------------------------------------------------------
 
+void update();
+void fetchWeatherData();
 void setupDisplay();
 void updateDisplay();
+
+Ticker timer1(update, updateSensorsTimeout * 1000);
+Ticker timer2(fetchWeatherData, updateWeatherForecastTimeout * 1000);
 
 void addr2hex(const uint8_t* da, char hex[17]) {
   snprintf(hex, 17, "%02X%02X%02X%02X%02X%02X%02X%02X", da[0], da[1], da[2], da[3], da[4], da[5], da[6], da[7]);
@@ -302,6 +308,14 @@ void saveConfig() {
     f.println(line);
     debug_println("<- " + line);
 
+    line = "sto=" + String(updateSensorsTimeout, 10);
+    f.println(line);
+    debug_println("<- " + line);
+
+    line = "wfcto=" + String(updateWeatherForecastTimeout, 10);
+    f.println(line);
+    debug_println("<- " + line);
+
     if (hasDisplay) {
       line = "hasDisplay";
       f.println(line);
@@ -349,8 +363,10 @@ void handleGetRoot() {
 
 void handleGetConfig() {
   snprintf(webSendBuffer, SIZE_WEBSENDBUFFER, 
-    "{\"v\":%d,\"n\":\"%s\",\"t\":\"%s\",\"a\":\"%-.2f\",\"d\":%d}", 
+    "{\"v\":%d,\"sf\":%d,\"ff\":%d,\"n\":\"%s\",\"t\":\"%s\",\"a\":\"%-.2f\",\"d\":%d}", 
     SENSORNODE_VERSION,
+    updateSensorsTimeout,
+    updateWeatherForecastTimeout,
     nodeName.c_str(),
     rootTopic.c_str(),
     nodeAltitude,
@@ -418,7 +434,21 @@ void handlePostRoot() {
     needSave = true;
   }
 
+  newValue = findData(content, "sf");
+  if (isNewValue(String(updateSensorsTimeout, 10), newValue)) {
+    updateSensorsTimeout = max(1L,newValue.toInt());
+    timer1.interval(updateSensorsTimeout * 1000);
+    needSave = true;
+  }
+
 #if SENSORNODE_VERSION > 1
+  newValue = findData(content, "ff");
+  if (isNewValue(String(updateWeatherForecastTimeout, 10), newValue)) {
+    updateWeatherForecastTimeout = newValue.toInt();
+    timer2.interval(updateWeatherForecastTimeout * 1000);
+    needSave = true;
+  }
+
   newValue = findData(content, "hasDisplay");
   if (hasDisplay != (newValue.length() > 0)) {
     hasDisplay = newValue.length() > 0;
@@ -513,6 +543,12 @@ void loadConfigFile() {
         String altitude = line.substring(sizeof("altitude=")-1);
         nodeAltitude = altitude.toFloat();
         debug_println("-> altitude='"+altitude+"'");
+      } else if (line.indexOf("sto=") >= 0) {
+        updateSensorsTimeout = line.substring(sizeof("sto=")-1).toInt();
+        debug_printf("-> sto='%d'\n", updateSensorsTimeout);
+      } else if (line.indexOf("wfcto=") >= 0) {
+        updateWeatherForecastTimeout = line.substring(sizeof("wfcto=")-1).toInt();
+        debug_printf("-> wfcto='%d'\n", updateWeatherForecastTimeout);
       } else if (line.indexOf("hasDisplay") >= 0) {
 #if SENSORNODE_VERSION > 1
         hasDisplay = true;
@@ -737,9 +773,6 @@ void update() {
   sendMQTTData();
   updateDisplay();
 }
-
-Ticker timer1(update, FETCH_SENSORS_CYCLE_SEC * 1000);
-Ticker timer2(fetchWeatherData, FETCH_WEATHER_FORCAST_SEC * 1000);
 
 void setup(void) {
   for(uint8_t i=0; i<MAX_SENSORS; ++i) {

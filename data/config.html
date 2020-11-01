@@ -17,18 +17,20 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
 .c th,.c td{text-align:left}
 .c .note{font-style:italic}
 .c .lastrow{margin:5px 15px;text-align:right}
-.c #tr_display{display: none;}
+.c tr.withdisplay{display: none;}
 </style>
 </head>
 <body>
 <div class=c>
-<h1>Configuration</h1>
+<h1>SensorNode V<span id="version">1</span> Configuration</h1>
 <form id="dlg" action="/" method="post">
   <table>
     <tr><th>Node</th><td><input id="node" type=text name="node" value="" size="20" maxlength="20"/></td><td class="note">Spaces and slashes are not supported!</td></tr>
     <tr><th>Topic Prefix</th><td><input id="topic" type=text name="topic" value="" size="20" maxlength="20"/></td><td class="note">Spaces and slashes are not supported, use a dot for hierarchy!!</td></tr>
     <tr><th>Altitude</th><td><input id="altitude" type=text name="altitude" value="" size="7" maxlength="7"/></td><td class="note">in meters xxxx.x</td></tr>
-    <tr id="tr_display"><th>Display</th><td><input id="display" type='checkbox' name='hasDisplay')/></td><td class="note"></td></tr>
+    <tr class="withdisplay"><th>With display</th><td><input id="display" type='checkbox' name='hasDisplay')/></td><td class="note"></td></tr>
+    <tr><th>Read sensors</th><td><input id="sf" type=text name="sf" value="" size="4" maxlength="4"/></td><td class="note">every x seconds</td></tr>
+    <tr class="withdisplay"><th>Fetch weather forecast</th><td><input id="ff" type=text name="ff" value="" size="4" maxlength="4"/></td><td class="note">every x seconds (only with display)</td></tr>
   </table>
 	<div class="g">
 	<table>
@@ -62,7 +64,10 @@ $(document).ready(function() {
     $.ajax({
       url: "http://"+document.location.host+"/config"
     }).then(function(data) {
-      $('#tr_display').prop('display', data.v > 1);
+      if (data.v > 1) { $('tr.withdisplay').show(); } else { $('tr.withdisplay').hide(); }
+      $('#version').text(data.v);
+      $('#sf').val(data.sf);
+      $('#ff').val(data.ff);
       $('#node').val(data.n);
       $('#topic').val(data.t);
       $('#altitude').val(data.a);
