@@ -285,6 +285,11 @@ String findData(const String& line, const String& key) {
   return result;
 } 
 
+void writeConfigLine(File& f, const String& line) {
+    f.println(line);
+    debug_println("<- " + line);
+}
+
 void saveConfig() {
   if (!LittleFS.begin()) {
     Serial.println("Error while init LittleFS.");
@@ -297,57 +302,29 @@ void saveConfig() {
     Serial.print("Save config file ... ");
     debug_println("");
 
-    String line = "node=" + nodeName;
-    f.println(line);
-    debug_println("<- " + line);
-
-    line = "topic=" + rootTopic;
-    f.println(line);
-    debug_println("<- " + line);
-    
-    line = "altitude=" + String(nodeAltitude, 2);
-    f.println(line);
-    debug_println("<- " + line);
-
-    line = "sto=" + String(updateSensorsTimeout, 10);
-    f.println(line);
-    debug_println("<- " + line);
-
-    line = "wfcto=" + String(updateWeatherForecastTimeout, 10);
-    f.println(line);
-    debug_println("<- " + line);
+    writeConfigLine(f, "node=" + nodeName);
+    writeConfigLine(f, "topic=" + rootTopic);
+    writeConfigLine(f, "altitude=" + String(nodeAltitude, 2));
+    writeConfigLine(f, "sto=" + String(updateSensorsTimeout, 10));
+    writeConfigLine(f, "wfcto=" + String(updateWeatherForecastTimeout, 10));
 
     if (hasDisplay) {
-      line = "hasDisplay";
-      f.println(line);
-      debug_println("<- " + line);
+      writeConfigLine(f, "hasDisplay");
     }
-
+    
     if (showSensor.length() > 0) {
-      line = "show=" + showSensor;
-      f.println(line);
-      debug_println("<- " + line);
+      writeConfigLine(f, "show=" + showSensor);
     }
-
+    
     uint8_t idx = 0;
     while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
-      line = "sensor-" + sensors[idx].id + "=" + sensors[idx].location;
-      f.println(line);
-      debug_println("<- " + line);
-
-      line = "sensor.enabled-" + sensors[idx].id + "=" + sensors[idx].enabled;
-      f.println(line);
-      debug_println("<- " + line);
-      
-      line = "sensor.correction-" + sensors[idx].id + "=" + sensors[idx].correction;
-      f.println(line);
-      debug_println("<- " + line);
-      
+      writeConfigLine(f, "sensor-" + sensors[idx].id + "=" + sensors[idx].location);
+      writeConfigLine(f, "sensor.enabled-" + sensors[idx].id + "=" + sensors[idx].enabled);
+      writeConfigLine(f, "sensor.correction-" + sensors[idx].id + "=" + sensors[idx].correction);
       ++idx;
     }
     
     f.close();
-
     Serial.println("done.");
   }
 
@@ -856,10 +833,8 @@ void setup(void) {
     } else {
       // U_FS
       type = "filesystem";
+      LittleFS.end();
     }
-
-    // NOTE: if updating FS this would be the place to unmount FS using FS.end()
-
     Serial.println("Start updating " + type);
   });
 
@@ -887,7 +862,6 @@ void setup(void) {
   });
 
   ArduinoOTA.begin(false);
-
 }
 
 void loop(void) { 
