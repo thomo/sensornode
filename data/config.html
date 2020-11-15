@@ -17,7 +17,7 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
 .c th,.c td{text-align:left}
 .c .note{font-style:italic}
 .c .lastrow{margin:5px 15px;text-align:right}
-.c tr.withdisplay{display: none;}
+.c .withdisplay{display: none;}
 </style>
 </head>
 <body>
@@ -29,15 +29,15 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
     <tr><th>Topic Prefix</th><td><input id="topic" type=text name="topic" value="" size="20" maxlength="20"/></td><td class="note">Spaces and slashes are not supported, use a dot for hierarchy!!</td></tr>
     <tr><th>Altitude</th><td><input id="altitude" type=text name="altitude" value="" size="7" maxlength="7"/></td><td class="note">in meters xxxx.x</td></tr>
     <tr class="withdisplay"><th>With display</th><td><input id="display" type='checkbox' name='hasDisplay')/></td><td class="note"></td></tr>
-    <tr><th>Read sensors</th><td><input id="sf" type=text name="sf" value="" size="4" maxlength="4"/></td><td class="note">every x seconds</td></tr>
-    <tr class="withdisplay"><th>Fetch weather forecast</th><td><input id="ff" type=text name="ff" value="" size="4" maxlength="4"/></td><td class="note">every x seconds (only with display)</td></tr>
+    <tr><th>Sensors cycle</th><td><input id="sensorcycle" type=text name="sensorcycle" value="" size="4" maxlength="4"/></td><td class="note">every x seconds</td></tr>
+    <tr class="withdisplay"><th>Weather forecast cycle</th><td><input id="forecastcycle" type=text name="forecastcycle" value="" size="4" maxlength="4"/></td><td class="note">every x seconds (only with display)</td></tr>
   </table>
 	<div class="g">
 	<table>
 		<thead>
       <tr>
         <th>Active</th>
-        <th>Display</th>
+        <th class="withdisplay">Display</th>
         <th>Sensor Id</th>
         <th>Type</th>
         <th>Location</th>
@@ -60,32 +60,37 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
 </div>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script>
+const SENSORNODE_DISPLAY_VERSION = 2;
+var sensornodeVersion = 1;
+
 $(document).ready(function() {
     $.ajax({
       url: "http://"+document.location.host+"/config"
     }).then(function(data) {
-      if (data.v > 1) { $('tr.withdisplay').show(); } else { $('tr.withdisplay').hide(); }
-      $('#version').text(data.v);
-      $('#sf').val(data.sf);
-      $('#ff').val(data.ff);
-      $('#node').val(data.n);
-      $('#topic').val(data.t);
-      $('#altitude').val(data.a);
-      $('#display').prop("checked", data.d);
+      sensornodeVersion = data.version;
+      if (data.version >= SENSORNODE_DISPLAY_VERSION) { $('.withdisplay').show(); } else { $('.withdisplay').hide(); }
+      $('#version').text(data.version);
+      $('#sensorcycle').val(data.sensorcycle);
+      $('#forecastcycle').val(data.forecastcycle);
+      $('#node').val(data.node);
+      $('#topic').val(data.topic);
+      $('#altitude').val(data.altitude);
+      $('#display').prop("checked", data.display);
     });
     $.ajax({
       url: "http://"+document.location.host+"/sensors"
-    }).then(function(data) {
-      for (var id in data.sensors) {
+    }).then(function(sensors) {
+      for (var id in sensors) {
         $('#sensor-list').append("<tr>"
-          +"<td><input type='checkbox' name='en-"+id+"' " + (data.sensors[id].e == 1 ? "checked" : "") + " /></td>"
-          +"<td><input type='radio' name='show' value='"+id+"'"+(data.sensors[id].s == 1 ? " checked" : "")+ "/></td>"
+          +"<td><input type='checkbox' name='en-"+id+"' " + (sensors[id].enabled == 1 ? "checked" : "") + " /></td>"
+          +"<td class='withdisplay'><input type='radio' name='show' value='"+id+"'"+(sensors[id].show == 1 ? " checked" : "")+ "/></td>"
           +"<td>"+id+"</td>"
-          +"<td>"+data.sensors[id].t+"</td>"
-          +"<td><input name='loc-"+id+"' size='30' maxlength='30' value='"+data.sensors[id].l+"'/></td>"
-          +"<td>"+data.sensors[id].m+"</td>"
-          +"<td>"+data.sensors[id].v+"</td>"
-          +"<td><input name='cor-"+id+"' size='7' maxlength='7' value='"+data.sensors[id].c+"'/></td></tr>");
+          +"<td>"+sensors[id].type+"</td>"
+          +"<td><input name='loc-"+id+"' size='30' maxlength='30' value='"+sensors[id].location+"'/></td>"
+          +"<td>"+sensors[id].measurand+"</td>"
+          +"<td>"+sensors[id].value+"</td>"
+          +"<td><input name='cor-"+id+"' size='7' maxlength='7' value='"+sensors[id].correction+"'/></td></tr>");
+        if (sensornodeVersion >= SENSORNODE_DISPLAY_VERSION) { $('.withdisplay').show(); } else { $('.withdisplay').hide(); }
       }
     });
 });

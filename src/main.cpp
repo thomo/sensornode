@@ -34,13 +34,15 @@
 
 #define DEFAULT_ROOT_TOPIC "tmp"
 
+#define SENSORNODE_WITH_DISPLAY_VERSION 2
+#define ANALOG_SENSOR_ADDR "a"
 // +++++++++++++++++++
 
 #include "weather.h"
 #include "disp.h"
 
 // +++++++++++++++++++
-#if SENSORNODE_VERSION > 1
+#if SENSORNODE_VERSION >= SENSORNODE_WITH_DISPLAY_VERSION
 #define ONE_WIRE_PIN 0
 #define I2C_SDA_PIN  4
 #define I2C_SCL_PIN  5
@@ -55,9 +57,9 @@
 #define CONFIG_FILE "/config.cfg"
 #define MAX_SENSORS 10
 
-#define SIZE_JSON_ONE_SENSOR   (sizeof("'123456789012345678901234567890':{'e':1,'l':'123456789012345678901234567890','t':'123456789012345678901234567890','m':'123456789012345678901234567890','v':'12345678901234567890','c':'1234567','d':1},"))
+#define SIZE_JSON_ONE_SENSOR   (sizeof("'123456789012345678901234567890':{'enabled':1,'location':'123456789012345678901234567890','type':'123456789012345678901234567890','measurand':'123456789012345678901234567890','value':'12345678901234567890','correction':'1234567','show':1},"))
 #define SIZE_JSONV_SENSORS     (SIZE_JSON_ONE_SENSOR * MAX_SENSORS)
-#define SIZE_JSON_BUFFER       (sizeof("{'sensors':{") + SIZE_JSONV_SENSORS + sizeof("}}"))
+#define SIZE_JSON_BUFFER       (sizeof("{") + SIZE_JSONV_SENSORS + sizeof("}"))
 #define SIZE_WEBSENDBUFFER     (SIZE_JSON_BUFFER)
 
 #define PAYLOAD_BUFFER_SIZE    (1024+20+20+MAX_SENSORS*40) 
@@ -94,7 +96,7 @@ String htu21Addr = "";
 Adafruit_HTU21DF htu21 = Adafruit_HTU21DF(); // I2C
 
 // --- Display --- 
-#if SENSORNODE_VERSION > 1
+#if SENSORNODE_VERSION >= SENSORNODE_WITH_DISPLAY_VERSION
 boolean hasDisplay = true;
 #else
 boolean hasDisplay = false;
@@ -241,6 +243,8 @@ void fetchSensorValues() {
     setSensorDataValue(htu21Addr+"h",htu21.readHumidity());
     setSensorDataValue(htu21Addr+"t",htu21.readTemperature());
   }
+
+  setSensorDataValue(ANALOG_SENSOR_ADDR, 1.0 * analogRead(A0));
 }
 
 uint16_t getPayload(char payload[]) {
@@ -341,7 +345,7 @@ void handleGetRoot() {
 
 void handleGetConfig() {
   snprintf(webSendBuffer, SIZE_WEBSENDBUFFER, 
-    "{\"v\":%d,\"sf\":%d,\"ff\":%d,\"n\":\"%s\",\"t\":\"%s\",\"a\":\"%-.2f\",\"d\":%d}", 
+    "{\"version\":%d,\"sensorcycle\":%d,\"forecastcycle\":%d,\"node\":\"%s\",\"topic\":\"%s\",\"altitude\":\"%-.2f\",\"display\":%d}", 
     SENSORNODE_VERSION,
     updateSensorsTimeout,
     updateWeatherForecastTimeout,
@@ -354,7 +358,7 @@ void handleGetConfig() {
 }
 
 void handleGetSensors() {
-  strcpy(webSendBuffer, "{\"sensors\":{");
+  strcpy(webSendBuffer, "{");
 
   char sep[2];
   sep[0]='\0';
@@ -365,7 +369,7 @@ void handleGetSensors() {
   while (sensors[idx].id.length() > 0 && idx < MAX_SENSORS) {
     snprintf(oneSensorBuf, SIZE_JSON_ONE_SENSOR, 
             //     keys: e, l, t, m, v, c, s
-            "%s\"%s\":{\"e\":%d,\"l\":\"%s\",\"t\":\"%s\",\"m\":\"%s\",\"v\":\"%s\",\"c\":\"%-.2f\",\"s\":%d}", 
+            "%s\"%s\":{\"enabled\":%d,\"location\":\"%s\",\"type\":\"%s\",\"measurand\":\"%s\",\"value\":\"%s\",\"correction\":\"%-.2f\",\"show\":%d}", 
             sep, 
             sensors[idx].id.c_str(), 
             sensors[idx].enabled, 
@@ -379,7 +383,7 @@ void handleGetSensors() {
     strncat(webSendBuffer, oneSensorBuf, SIZE_WEBSENDBUFFER - strlen(webSendBuffer));
     ++idx;
   }
-  strncat(webSendBuffer, "}}", SIZE_WEBSENDBUFFER - strlen(webSendBuffer));
+  strncat(webSendBuffer, "}", SIZE_WEBSENDBUFFER - strlen(webSendBuffer));
   espServer.send(200, "application/json", webSendBuffer);   
 }
 
@@ -412,15 +416,15 @@ void handlePostRoot() {
     needSave = true;
   }
 
-  newValue = findData(content, "sf");
+  newValue = findData(content, "sensorcycle");
   if (isNewValue(String(updateSensorsTimeout, 10), newValue)) {
     updateSensorsTimeout = max(1L,newValue.toInt());
     timer1.interval(updateSensorsTimeout * 1000);
     needSave = true;
   }
 
-#if SENSORNODE_VERSION > 1
-  newValue = findData(content, "ff");
+#if SENSORNODE_VERSION >= SENSORNODE_WITH_DISPLAY_VERSION
+  newValue = findData(content, "forecastcycle");
   if (isNewValue(String(updateWeatherForecastTimeout, 10), newValue)) {
     updateWeatherForecastTimeout = newValue.toInt();
     timer2.interval(updateWeatherForecastTimeout * 1000);
@@ -528,7 +532,7 @@ void loadConfigFile() {
         updateWeatherForecastTimeout = line.substring(sizeof("wfcto=")-1).toInt();
         debug_printf("-> wfcto='%d'\n", updateWeatherForecastTimeout);
       } else if (line.indexOf("hasDisplay") >= 0) {
-#if SENSORNODE_VERSION > 1
+#if SENSORNODE_VERSION >= SENSORNODE_WITH_DISPLAY_VERSION
         hasDisplay = true;
         debug_println("-> hasDisplay");
 #else
@@ -699,6 +703,10 @@ void setupI2CSensors() {
   }
 }
 
+void setupAnalogSensor() {
+  addSensor(ANALOG_SENSOR_ADDR, "LDR", "brightness");
+}
+
 void setupDisplay() {
   if (hasDisplay) {
     tft.init();
@@ -770,6 +778,7 @@ void setup(void) {
 
   setupOneWireSensors();
   setupI2CSensors();
+  setupAnalogSensor();
 
   loadConfig();
 
