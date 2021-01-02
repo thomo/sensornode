@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="9.5.2">
+<eagle version="9.6.2">
 <drawing>
 <settings>
 <setting alwaysvectorfont="yes"/>
@@ -8898,12 +8898,13 @@ W = angled&lt;p&gt;
 <attribute name="CREVISION" value="v1.0"/>
 <attribute name="DESIGNER" value="ThoMo"/>
 </part>
-<part name="C4" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="C-EU" device="C1206" package3d_urn="urn:adsk.eagle:package:23618/2" value="1nF"/>
+<part name="C4" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="C-EU" device="C1206" package3d_urn="urn:adsk.eagle:package:23618/2" value="100nF"/>
 <part name="GND3" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="GND" device=""/>
 <part name="SV1" library="con-lsta" library_urn="urn:adsk.eagle:library:161" deviceset="FE08-1" device="" package3d_urn="urn:adsk.eagle:package:8194/1"/>
-<part name="R6" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-EU_" device="M1206" package3d_urn="urn:adsk.eagle:package:23566/2" value="10k"/>
+<part name="R6" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-EU_" device="M1206" package3d_urn="urn:adsk.eagle:package:23566/2" value="100k"/>
 <part name="LDR" library="thomo" deviceset="LDR-GL55XX" device=""/>
 <part name="GND4" library="supply1" library_urn="urn:adsk.eagle:library:371" deviceset="GND" device=""/>
+<part name="R7" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-EU_" device="M1206" package3d_urn="urn:adsk.eagle:package:23566/2" value="39k"/>
 </parts>
 <sheets>
 <sheet>
@@ -9020,6 +9021,10 @@ W = angled&lt;p&gt;
 <instance part="GND4" gate="1" x="124.46" y="101.6" smashed="yes">
 <attribute name="VALUE" x="121.92" y="99.06" size="1.778" layer="96"/>
 </instance>
+<instance part="R7" gate="G$1" x="114.3" y="111.76" smashed="yes" rot="R90">
+<attribute name="NAME" x="112.8014" y="107.95" size="1.778" layer="95" rot="R90"/>
+<attribute name="VALUE" x="117.602" y="107.95" size="1.778" layer="96" rot="R90"/>
+</instance>
 </instances>
 <busses>
 </busses>
@@ -9093,6 +9098,10 @@ W = angled&lt;p&gt;
 <pinref part="LDR" gate="G$1" pin="2"/>
 <pinref part="GND4" gate="1" pin="GND"/>
 <wire x1="124.46" y1="106.68" x2="124.46" y2="104.14" width="0.1524" layer="91"/>
+<pinref part="R7" gate="G$1" pin="1"/>
+<wire x1="124.46" y1="104.14" x2="114.3" y2="104.14" width="0.1524" layer="91"/>
+<wire x1="114.3" y1="104.14" x2="114.3" y2="106.68" width="0.1524" layer="91"/>
+<junction x="124.46" y="104.14"/>
 </segment>
 </net>
 <net name="+3V3" class="0">
@@ -9301,6 +9310,9 @@ W = angled&lt;p&gt;
 <pinref part="LDR" gate="G$1" pin="1"/>
 <wire x1="124.46" y1="121.92" x2="124.46" y2="116.84" width="0.1524" layer="91"/>
 <junction x="124.46" y="121.92"/>
+<pinref part="R7" gate="G$1" pin="2"/>
+<wire x1="124.46" y1="121.92" x2="114.3" y2="121.92" width="0.1524" layer="91"/>
+<wire x1="114.3" y1="121.92" x2="114.3" y2="116.84" width="0.1524" layer="91"/>
 </segment>
 </net>
 </nets>
