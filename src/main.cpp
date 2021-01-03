@@ -24,7 +24,7 @@
 #include <Ticker.h>
 
 // +++++++++++++++++++
-const char COMPILE_INFO[] PROGMEM = {__DATE__ " " __TIME__ " - v2.0"};
+const char COMPILE_INFO[] PROGMEM = {__DATE__ " " __TIME__ " - v2.1"};
 // +++++++++++++++++++
 
 // set SENSORNODE_VERSION in platformio.ini
@@ -649,7 +649,7 @@ void loadConfigFile() {
     }
     f.close();
 
-    log(LOGLEVEL_INFO, F("... done."));
+    log(LOGLEVEL_INFO, F("Config file loaded."));
   }
 }
 
