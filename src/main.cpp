@@ -24,7 +24,10 @@
 #include <Ticker.h>
 
 // +++++++++++++++++++
+const char COMPILE_INFO[] PROGMEM = {__DATE__ " " __TIME__ " - v2.0"};
+// +++++++++++++++++++
 
+// set SENSORNODE_VERSION in platformio.ini
 #ifndef SENSORNODE_VERSION
 #define SENSORNODE_VERSION 1
 #endif
@@ -53,8 +56,8 @@
 #endif
 
 
-#define CONFIG_HTML "/config.html"
-#define CONFIG_FILE "/config.cfg"
+const String CONFIG_HTML = "/config.html";
+const String CONFIG_FILE = "/config.cfg";
 #define MAX_SENSORS 10
 
 #define SIZE_JSON_ONE_SENSOR   (sizeof("'123456789012345678901234567890':{'enabled':1,'location':'123456789012345678901234567890','type':'123456789012345678901234567890','measurand':'123456789012345678901234567890','value':'12345678901234567890','correction':'1234567','show':1},"))
@@ -146,7 +149,47 @@ SensorData tmpSensor = {
 };
 
 SensorData sensors[MAX_SENSORS]; 
+// log buffer
+#define LOGLEVEL_DEBUG 3
+#define LOGLEVEL_INFO 2
+#define LOGLEVEL_WARN 1
+#define LOGLEVEL_ERROR 0
 
+#define LOGLINE_LENGTH (128-3-1)
+struct LogLine {
+  uint8_t timestamp[3]; // hh|mm|ss
+  uint8_t level; // ERROR,WARN,INFO,DEBUG
+  char message[LOGLINE_LENGTH];
+};
+// 1k = 8 lines
+char logbuf[LOGLINE_LENGTH];
+#define LOGLINE_CNT (8 * 5)
+LogLine logs[LOGLINE_CNT];
+int8_t lastLogLine = LOGLINE_CNT - 1;
+int32_t lastLogId = -1;
+
+void logPrefix(uint8_t level) {
+  ++lastLogLine;
+  ++lastLogId;
+  if (lastLogLine >= LOGLINE_CNT) lastLogLine = 0;
+  logs[lastLogLine].timestamp[0] = myTZ.hour();
+  logs[lastLogLine].timestamp[1] = myTZ.minute();
+  logs[lastLogLine].timestamp[2] = myTZ.second();
+  logs[lastLogLine].level = level;
+}
+
+void log(uint8_t level, const char *msg) {
+  logPrefix(level);  
+  Serial.println(msg);
+  strlcpy(logs[lastLogLine].message, msg, LOGLINE_LENGTH); 
+}
+
+void log(uint8_t level, const __FlashStringHelper *msg) {
+  logPrefix(level);  
+  Serial.println(msg);
+  strncpy_P(logs[lastLogLine].message, (const char *) msg, LOGLINE_LENGTH);
+  logs[lastLogLine].message[LOGLINE_LENGTH-1] = '\0';
+}
 // ------------------------------------------------------------------------------------------------
 
 void update();
@@ -207,11 +250,6 @@ void updateSensorTopics() {
     updateSensorTopic(sensors[idx].id);
     ++idx;
   }
-}
-
-void printSensorData(const String& id) {
-  SensorData sd = getSensorData(id);
-  Serial.println(sd.type + " " + sd.location + "(" + sd.id + "): "+ sd.value);
 }
 
 void setSensorDataValue(const String& id, float v) {
@@ -296,15 +334,14 @@ void writeConfigLine(File& f, const String& line) {
 
 void saveConfig() {
   if (!LittleFS.begin()) {
-    Serial.println("Error while init LittleFS.");
+    log(LOGLEVEL_ERROR, F("Error while init LittleFS."));
     return;
   }
   File f = LittleFS.open(CONFIG_FILE, "w");
   if (!f) {
-    Serial.println("File '"+String(CONFIG_FILE)+"' open to write failed");
+    log(LOGLEVEL_ERROR, F("Open config file to write failed!"));
   } else {
-    Serial.print("Save config file ... ");
-    debug_println("");
+    debug_println("Save config file ... ");
 
     writeConfigLine(f, "node=" + nodeName);
     writeConfigLine(f, "topic=" + rootTopic);
@@ -329,7 +366,7 @@ void saveConfig() {
     }
     
     f.close();
-    Serial.println("done.");
+    log(LOGLEVEL_INFO, F("Saved config."));
   }
 
   LittleFS.end();
@@ -345,8 +382,9 @@ void handleGetRoot() {
 
 void handleGetConfig() {
   snprintf(webSendBuffer, SIZE_WEBSENDBUFFER, 
-    "{\"version\":%d,\"sensorcycle\":%d,\"forecastcycle\":%d,\"node\":\"%s\",\"topic\":\"%s\",\"altitude\":\"%-.2f\",\"display\":%d}", 
+    "{\"version\":%d,\"build\":\"%s\",\"sensorcycle\":%d,\"forecastcycle\":%d,\"node\":\"%s\",\"topic\":\"%s\",\"altitude\":\"%-.2f\",\"display\":%d}", 
     SENSORNODE_VERSION,
+    COMPILE_INFO,
     updateSensorsTimeout,
     updateWeatherForecastTimeout,
     nodeName.c_str(),
@@ -385,6 +423,48 @@ void handleGetSensors() {
   }
   strncat(webSendBuffer, "}", SIZE_WEBSENDBUFFER - strlen(webSendBuffer));
   espServer.send(200, "application/json", webSendBuffer);   
+}
+
+void handleGetLogs() {
+  int32_t startId = 0;
+  if (espServer.args() == 1 && espServer.hasArg("id")) {
+    startId = max(espServer.arg(0).toInt(), 0L);
+  }
+  
+  espServer.chunkedResponseModeStart(200, "application/json");
+  espServer.sendContent("{\"nextId\":");
+  sprintf(logbuf, "%d", lastLogId + 1);
+  espServer.sendContent(logbuf);
+  espServer.sendContent(",\"logs\":[");
+  if (startId <= lastLogId) {
+    int8_t cnt = (int8_t) min(lastLogId - startId + 1, LOGLINE_CNT);
+    int8_t idx = (lastLogId - cnt) % LOGLINE_CNT;
+    char sep[2] = " ";
+    char tstamp[9];
+    for (uint8_t i = 0; i < cnt; ++i) {
+      ++idx;
+      if (idx == LOGLINE_CNT) idx = 0;
+      if (strlen(logs[idx].message) == 0) continue;
+
+      espServer.sendContent(sep);
+      espServer.sendContent("{\"time\":\"");
+      snprintf(tstamp, 9, "%02d:%02d:%02d", logs[idx].timestamp[0], logs[idx].timestamp[1], logs[idx].timestamp[2]);
+      espServer.sendContent(tstamp);
+      espServer.sendContent("\",\"level\":\"");
+      switch(logs[idx].level) {
+        case LOGLEVEL_ERROR: espServer.sendContent("ERROR"); break;
+        case LOGLEVEL_WARN: espServer.sendContent("WARN"); break;
+        case LOGLEVEL_INFO: espServer.sendContent("INFO"); break; 
+        default: espServer.sendContent("DEBUG");
+      }
+      espServer.sendContent("\",\"msg\":\"");
+      espServer.sendContent(logs[idx].message);
+      espServer.sendContent("\"}");
+      sep[0] = ',';
+    }
+  }
+  espServer.sendContent("]}");
+  espServer.chunkedResponseFinalize();
 }
 
 // POST new node name and/or a new sensor location
@@ -492,7 +572,7 @@ void loadConfigHtml() {
   configHtml = "";
   File f = LittleFS.open(CONFIG_HTML, "r");
   if (!f) {
-    Serial.println("File '"+String(CONFIG_HTML)+"' not found/open failed");
+    log(LOGLEVEL_ERROR,F("HTML file not found/open failed"));
   } else {
     while(f.available()) {
       configHtml = configHtml + f.readString();
@@ -504,10 +584,9 @@ void loadConfigHtml() {
 void loadConfigFile() {
   File f = LittleFS.open(CONFIG_FILE, "r");
   if (!f) {
-    Serial.println("File '"+String(CONFIG_FILE)+"' not found/open failed - use default values");
+    log(LOGLEVEL_WARN, F("Config file not found/open failed - use default values"));
   } else {
-    Serial.print("Load config file ... ");
-    debug_println("");
+    debug_println(F("Load config file ... "));
     uint8_t idx = 0;
     while(f.available() && idx < MAX_SENSORS) {
       String line = f.readStringUntil('\n');
@@ -528,13 +607,15 @@ void loadConfigFile() {
       } else if (line.indexOf("sto=") >= 0) {
         updateSensorsTimeout = line.substring(sizeof("sto=")-1).toInt();
         debug_printf("-> sto='%d'\n", updateSensorsTimeout);
+        timer1.interval(updateSensorsTimeout * 1000);
       } else if (line.indexOf("wfcto=") >= 0) {
         updateWeatherForecastTimeout = line.substring(sizeof("wfcto=")-1).toInt();
         debug_printf("-> wfcto='%d'\n", updateWeatherForecastTimeout);
+        timer2.interval(updateWeatherForecastTimeout * 1000);
       } else if (line.indexOf("hasDisplay") >= 0) {
 #if SENSORNODE_VERSION >= SENSORNODE_WITH_DISPLAY_VERSION
         hasDisplay = true;
-        debug_println("-> hasDisplay");
+        debug_println(F("-> hasDisplay"));
 #else
         hasDisplay = false;
 #endif
@@ -568,16 +649,16 @@ void loadConfigFile() {
     }
     f.close();
 
-    Serial.println("done.");
+    log(LOGLEVEL_INFO, F("... done."));
   }
 }
 
 void loadConfig() {
-  debug_println("loadConfig:");
+  debug_println(F("loadConfig:"));
   if (LittleFS.begin()) {
-    debug_println("Init LittleFS - successful.");
+    debug_println(F("Init LittleFS - successful."));
   } else {
-    Serial.println("Error while init LittleFS.");
+    log(LOGLEVEL_ERROR, F("Error while init LittleFS."));
     return;
   }
 
@@ -603,9 +684,9 @@ void sendMQTTData() {
         sensors[idx].value.c_str());
 
       mqttClient.publish(sensors[idx].topic.c_str(), dataLine);
-      debug_print("MQTT: " + sensors[idx].topic + " ");
+      snprintf(logbuf, LOGLINE_LENGTH, "MQTT topic: %s, msg: %s", sensors[idx].topic.c_str(), dataLine);
+      log(LOGLEVEL_INFO,logbuf);
       debug_println(dataLine);
-      Serial.print(".");
     }
 
     ++idx;
@@ -615,14 +696,13 @@ void sendMQTTData() {
 void mqttReconnect() {
   // Loop until we're reconnected
   while (!mqttClient.connected()) {
-    Serial.print("Attempting MQTT connection ... ");
+    debug_println(F("MQTT Try to connect ... "));
     // Attempt to connect
     if (mqttClient.connect(nodeName.c_str())) {
-      Serial.println("success.");
+      log(LOGLEVEL_INFO, F("MQTT Connected."));
     } else {
-      Serial.print("failed, rc=");
-      Serial.print(mqttClient.state());
-      Serial.println(". Try again in 5 seconds.");
+      snprintf(logbuf, LOGLINE_LENGTH, "MQTT Connection failed, rc=%d. Try again in 5 seconds.", mqttClient.state());
+      log(LOGLEVEL_WARN, logbuf);
       // Wait 5 seconds before retrying
       delay(5000);
     }
@@ -635,14 +715,19 @@ void setupOneWireSensors() {
   oneWireDeviceCount = dsSensors.getDeviceCount();
 
   // locate devices on the bus
-  Serial.printf("Found %d OneWire devices.\n", oneWireDeviceCount);
+  if (oneWireDeviceCount > 0) {
+    snprintf(logbuf, LOGLINE_LENGTH, "Found %d OneWire devices.", oneWireDeviceCount);
+    log(LOGLEVEL_INFO, logbuf);
+  } else  {
+    log(LOGLEVEL_INFO, F("No OneWire devices found."));
+  }
 
   DeviceAddress addr;
   // search for devices on the bus and assign based on an index.
   for (uint8_t i = 0; i < oneWireDeviceCount; ++i) {
     if (!dsSensors.getAddress(addr, i)) {
-      Serial.print("Unable to find address for Device "); 
-      Serial.print(i, DEC);
+      snprintf(logbuf, LOGLINE_LENGTH, "Unable to find address for Device %d", i); 
+      log(LOGLEVEL_ERROR, logbuf);
     } else {
       char hexbuf[17];
       addr2hex(addr, hexbuf);
@@ -661,11 +746,12 @@ void setupI2CSensors() {
   } else if (bme.begin(0x77)) {
     bmeAddr = "77";
   } else {
-    Serial.println("No BME280 sensor found.");
+    log(LOGLEVEL_INFO, F("No BME280 sensor found."));
   }
 
   if (bmeAddr.length() > 0) {
-    Serial.println("Found BME280 sensor on 0x" + bmeAddr);
+    snprintf(logbuf, LOGLINE_LENGTH, "Found BME280 sensor on 0x%s", bmeAddr.c_str());
+    log(LOGLEVEL_INFO, logbuf);
     addSensor(bmeAddr+"h", "BME280", "humidity");
     addSensor(bmeAddr+"p", "BME280", "pressure");
     addSensor(bmeAddr+"t", "BME280", "temperature");
@@ -685,21 +771,22 @@ void setupI2CSensors() {
       default:
         model="Si70xx";
     }
-    Serial.println("Found "+model+" sensor!");
+    snprintf(logbuf, LOGLINE_LENGTH, "Found %s sensor!", model.c_str());
+    log(LOGLEVEL_INFO, logbuf);
     si70xxAddr = "40";
     addSensor(si70xxAddr+"h", model, "humidity");
     addSensor(si70xxAddr+"t", model, "temperature");
   } else {
-    Serial.println("No Si70xx sensor found.");
+    log(LOGLEVEL_INFO, F("No Si70xx sensor found."));
   }
 
   if (si70xxAddr.length() == 0 && htu21.begin()) { // si70xx and htu21 have the same i2c addr 0x40
-    Serial.println("Found HTU21 sensor!");
+    log(LOGLEVEL_INFO, F("Found HTU21 sensor!"));
     htu21Addr = "40";
     addSensor(htu21Addr+"h", "HTU21", "humidity");
     addSensor(htu21Addr+"t", "HTU21", "temperature");
   } else {
-    Serial.println("No HTU21 sensor found.");
+    log(LOGLEVEL_INFO, F("No HTU21 sensor found."));
   }
 }
 
@@ -788,41 +875,47 @@ void setup(void) {
   wifiManager.setConfigPortalTimeout(180);
   wifiManager.setDebugOutput(false);
 
-  Serial.print("Try WIFI connect ... ");
+  log(LOGLEVEL_INFO, F("WIFI Try to connect ... "));
   if (hasDisplay) {
-    tft.drawString("Try WIFI connect ... ", 10, 5, FIXED_FONT);
+    tft.drawString("WIFI Try to connect ... ", 10, 5, FIXED_FONT);
   }
   if(!wifiManager.autoConnect(DEFAULT_NODE_NAME)) {
-    Serial.println("failed to connect and hit timeout");
+    log(LOGLEVEL_WARN, F("WIFI Failed to connect and hit timeout."));
     //reset and try again, or maybe put it to deep sleep
     ESP.reset();
     delay(5000);
   } 
 
   IPAddress myAddress = WiFi.localIP();
-  Serial.println("done. IP: " + myAddress.toString());
+  snprintf(logbuf, LOGLINE_LENGTH, "WIFI Connected. IP: %s", myAddress.toString().c_str());
+  log(LOGLEVEL_INFO, logbuf);
   if (hasDisplay) {
-    tft.drawString("done. IP: "+ myAddress.toString(), 10, 5+12, FIXED_FONT);
+    tft.drawString(logbuf, 10, 5+12, FIXED_FONT);
   }
 
+  debug_print(F("NTP Sync time ..."));
   if (hasDisplay) {
-    tft.drawString("Sync with NTP ...", 10, 5+12+12, FIXED_FONT);
+    tft.drawString("NTP Sync time ...", 10, 5+12+12, FIXED_FONT);
   }
   waitForSync();
 	myTZ.setLocation(F("de"));
+  log(LOGLEVEL_INFO, F("NTP sync done."));
 
   espServer.on("/", HTTP_GET, handleGetRoot);
   espServer.on("/config", HTTP_GET, handleGetConfig);
   espServer.on("/sensors", HTTP_GET, handleGetSensors);
+  espServer.on("/logs", HTTP_GET, handleGetLogs);
 
   espServer.on("/", HTTP_POST, handlePostRoot);
 
   espServer.onNotFound(handleError);
 
-  Serial.println("Run web server for configuration.");
+  log(LOGLEVEL_INFO, F("WEB Server is configured."));
   espServer.begin();
 
   mqttClient.setServer(MQTT_SERVER, 1883);
+  snprintf(logbuf, LOGLINE_LENGTH, "MQTT Server is %s", MQTT_SERVER);
+  log(LOGLEVEL_INFO, logbuf);
   
   timer1.start();
   timer2.start();
@@ -839,16 +932,17 @@ void setup(void) {
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH) {
       type = "sketch";
+      log(LOGLEVEL_INFO, F("OTA Start updating program code"));
     } else {
       // U_FS
       type = "filesystem";
       LittleFS.end();
+      log(LOGLEVEL_INFO, F("OTA Start updating filesystem"));
     }
-    Serial.println("Start updating " + type);
   });
 
   ArduinoOTA.onEnd([]() {
-    Serial.println("\nEnd");
+    log(LOGLEVEL_INFO, F("OTA Finished."));
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -871,9 +965,12 @@ void setup(void) {
   });
 
   ArduinoOTA.begin(false);
+
+  log(LOGLEVEL_INFO, "Setup finished.");
 }
 
 void loop(void) { 
+  ArduinoOTA.handle();
   espServer.handleClient();
 
   if (!mqttClient.connected()) {
@@ -883,6 +980,4 @@ void loop(void) {
 
   timer1.update(); 
   timer2.update(); 
-
-  ArduinoOTA.handle();
  }

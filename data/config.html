@@ -17,12 +17,15 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
 .c th,.c td{text-align:left}
 .c .note{font-style:italic}
 .c .lastrow{margin:5px 15px;text-align:right}
-.c .withdisplay{display: none;}
+.c .withdisplay{display:none;}
+textarea{width:700px;height:250px;margin-top:20px;}
+.build{font-style:italic;margin:0 0 15px;} 
 </style>
 </head>
 <body>
 <div class=c>
 <h1>SensorNode V<span id="version">1</span> Configuration</h1>
+<div id="build" class="build"></div>
 <form id="dlg" action="/" method="post">
   <table>
     <tr><th>Node</th><td><input id="node" type=text name="node" value="" size="20" maxlength="20"/></td><td class="note">Spaces and slashes are not supported!</td></tr>
@@ -57,11 +60,13 @@ body{text-align:center;background-color:#2b4e69;font:normal 12px/18px Arial,Helv
 	</div>
 	<div class="lastrow"><input type=submit name=action value=update /></div>
 </form>
+<textarea id="logs" rows="40" cols="128" wrap="off" readonly></textarea>
 </div>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script>
 const SENSORNODE_DISPLAY_VERSION = 2;
 var sensornodeVersion = 1;
+var nextLogId = 0;
 
 $(document).ready(function() {
     $.ajax({
@@ -70,6 +75,7 @@ $(document).ready(function() {
       sensornodeVersion = data.version;
       if (data.version >= SENSORNODE_DISPLAY_VERSION) { $('.withdisplay').show(); } else { $('.withdisplay').hide(); }
       $('#version').text(data.version);
+      $('#build').text("Build: " + data.build);
       $('#sensorcycle').val(data.sensorcycle);
       $('#forecastcycle').val(data.forecastcycle);
       $('#node').val(data.node);
@@ -93,6 +99,20 @@ $(document).ready(function() {
         if (sensornodeVersion >= SENSORNODE_DISPLAY_VERSION) { $('.withdisplay').show(); } else { $('.withdisplay').hide(); }
       }
     });
-});
+    showLatestLogs();
+  });
+
+  setInterval(showLatestLogs, 1000);
+
+  function showLatestLogs() {
+    $.ajax({
+      url: "http://"+document.location.host+"/logs?id="+nextLogId
+    }).then(function(data) {
+      nextLogId = data.nextId;
+      for (var id in data.logs) {
+        $('#logs').append(data.logs[id].time + " " + data.logs[id].level + " " + data.logs[id].msg + "\n");
+      }
+    });
+  }
 </script>
 </body></html>
