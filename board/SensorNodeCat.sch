@@ -8895,7 +8895,7 @@ W = angled&lt;p&gt;
 <part name="R5" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-EU_" device="M1206" package3d_urn="urn:adsk.eagle:package:23566/2" value="10k"/>
 <part name="FRAME2" library="SparkFun-Aesthetics" library_urn="urn:adsk.eagle:library:507" deviceset="FRAME-A4L" device="">
 <attribute name="CNAME" value="https://github.com/thomo/sensornode"/>
-<attribute name="CREVISION" value="v1.0"/>
+<attribute name="CREVISION" value="v1.1"/>
 <attribute name="DESIGNER" value="ThoMo"/>
 </part>
 <part name="C4" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="C-EU" device="C1206" package3d_urn="urn:adsk.eagle:package:23618/2" value="100nF"/>
