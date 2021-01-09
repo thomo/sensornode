@@ -887,7 +887,7 @@ void setup(void) {
   } 
 
   IPAddress myAddress = WiFi.localIP();
-  snprintf(logbuf, LOGLINE_LENGTH, "WIFI Connected. IP: %s", myAddress.toString().c_str());
+  snprintf(logbuf, LOGLINE_LENGTH, "WIFI '%s' connected. IP: %s", WiFi.SSID().c_str(), myAddress.toString().c_str());
   log(LOGLEVEL_INFO, logbuf);
   if (hasDisplay) {
     tft.drawString(logbuf, 10, 5+12, FIXED_FONT);
