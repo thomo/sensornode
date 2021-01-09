@@ -25,7 +25,7 @@ void drawBmp(TFT_eSPI &tft, const char *filename, int16_t x, int16_t y) {
   if (LittleFS.begin()) {
     // debug_println("Init LittleFS - successful.");
   } else {
-    Serial.println("Error while init LittleFS.");
+    Serial.println(F("Error while init LittleFS."));
     return;
   }
 
