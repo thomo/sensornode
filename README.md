@@ -6,8 +6,9 @@ A ESP8266 based solution with support for
 - BME280 humidity, pressure, temperature sensor (I2C) - Note: temperature is measured in-chip, so it is usually too inaccurate to measure the environment temperature
 - Si7021 humidity, temperatur sensor (I2C)
 - HTU21 humidity, temperatur sensor (I2C)
+- LDR sensors to "measure" the brightness (analog)
 
-The software will determine which sensors are connected. Because of the fixed I2C addresses on the sensors only 1 BME and 1 Si7021/HTU21 sensors are supported, but multiple 1-Wire sensors.
+The software will determine which sensors are connected. Because of the fixed I2C addresses on the sensors only one example of BME, Si7021, or HTU21 can be connected - but multiple different. Multiple 1-Wire sensors are supported. In total the number of sensors is set to 10 (`main.cpp`__MAX_SENSORS__) - but please note that each measurand counts, e.g. a BME280 counts 3x.
 
 The software provides an configuration web page where the sensors can be enabled and an location can be specified.
 
@@ -38,8 +39,8 @@ For each sensor a location can be defined and a correction value. The correction
 ## API
 
 The Sensor Node offers some URIs
-* http://\<node-ip\>/config - the node name, root topic, altitude, and display flag, as JSON data
-* http://\<node-ip\>/sensors - the sensor data, as JSON 
+* `http://<node-ip>/config` - the node name, root topic, altitude, and display flag, as JSON data
+* `http://<node-ip>/sensors` - the sensor data, as JSON 
 
 ## MQTT Topic and Payload
 
@@ -63,6 +64,7 @@ The node will acquire the sensor measurements every X seconds - wether or not th
   - DATA -> GPIO0 (D3)
 
 ### Display
+
 - ST7735 -> ESP8266
   - 1 - RST -> RST or +3V3
   - 2 - CS  -> GPIO15 (D8)  
@@ -87,6 +89,18 @@ It is a board to be used with the sensor node code. The board is designed to be 
 
 If you want to order some pcb boards you can use this link to [Aisler](https://aisler.net/p/KDLFHCIK).
 
+### SensorNodeCat
+
+Another board I designed to be placed in a CAT box, but it can also be used in general. It 
+
+![Circuit](board/SensorNodeCat.png "SensorNodeCat circuit")
+
+![PCB top layer](board/SensorNodeCat_pcb_top.png "SensorNodeCat PCB top layer")
+
+![PCB bottom layer](board/SensorNodeCat_pcb_bottom.png "SensorNodeCat PCB bottom layer")
+
+If you want to order some pcb boards you can use this link to [Aisler](
+https://aisler.net/p/CNWEPDIW).
 
 ## Fonts/Icons
 
