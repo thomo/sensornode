@@ -12,7 +12,7 @@ The software will determine which sensors are connected. Because of the fixed I2
 
 The software provides an configuration web page where the sensors can be enabled and an location can be specified.
 
-The ESP will than read the sensors every 10 seconds (can be changed in `main.cpp` __FETCH_SENSORS_CYCLE_SEC__). The values are published via MQTT (`main.cpp` __MQTT_SERVER__). The used MQTT topic can be configured by the configuration web page (see below).
+The ESP will than read the sensors every 10 seconds (can be changed in ~~`main.cpp` __FETCH_SENSORS_CYCLE_SEC__~~ config dialog). The values are published via MQTT (`main.cpp` __MQTT_SERVER__). The used MQTT topic can be configured by the configuration web page (see below).
 
 ## Compile time configuration
 
@@ -39,8 +39,8 @@ For each sensor a location can be defined and a correction value. The correction
 ## API
 
 The Sensor Node offers some URIs
-* `http://<node-ip>/config` - the node name, root topic, altitude, and display flag, as JSON data
-* `http://<node-ip>/sensors` - the sensor data, as JSON 
+- `http://<node-ip>/config` - the node name, root topic, altitude, and display flag, as JSON data
+- `http://<node-ip>/sensors` - the sensor data, as JSON
 
 ## MQTT Topic and Payload
 
@@ -62,6 +62,8 @@ The node will acquire the sensor measurements every X seconds - wether or not th
   - SCL -> GPIO5 (D1)
 - 1wire
   - DATA -> GPIO0 (D3)
+- LDR
+  - ADC (Pin2)
 
 ### Display
 
@@ -91,7 +93,7 @@ If you want to order some pcb boards you can use this link to [Aisler](https://a
 
 ### SensorNodeCat
 
-Another board I designed to be placed in a CAT box, but it can also be used in general. It 
+Another board I designed to be placed in a CAT box, but it can also be used in a more general way.
 
 ![Circuit](board/SensorNodeCat.png "SensorNodeCat circuit")
 
