@@ -40,6 +40,7 @@ const char COMPILE_INFO[] PROGMEM = {__DATE__ " " __TIME__ " - v2.1"};
 
 #define DEFAULT_NODE_NAME "F42-NODE"
 #define MQTT_SERVER "mqtt.thomo.de"
+#define MY_NTP_SERVER "ntp.thomo.de"
 
 #define DEFAULT_ROOT_TOPIC "tmp"
 
@@ -1048,6 +1049,7 @@ void setup(void) {
   if (hasDisplay) {
     tft.drawString("NTP Sync time ...", 10, 5+12+12, FIXED_FONT);
   }
+  setServer(MY_NTP_SERVER);
   waitForSync();
 	myTZ.setLocation(F("de"));
   log(LOGLEVEL_INFO, F("NTP sync done."));
