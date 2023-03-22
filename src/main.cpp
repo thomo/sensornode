@@ -291,7 +291,7 @@ void drawBmp(TFT_eSPI &tft, const char *filename, int16_t x, int16_t y) {
       // Serial.println(" ms");
     }
   } else {
-    Serial.println("Header dont match 0x4D42");
+    Serial.println("Header don't match 0x4D42");
   }
   bmpFS.close();
   LittleFS.end();
@@ -725,6 +725,7 @@ void loadConfigHtml() {
   File f = LittleFS.open(CONFIG_HTML, "r");
   if (!f) {
     log(LOGLEVEL_ERROR,F("HTML file not found/open failed"));
+    configHtml = "HTML file not found/open failed";
   } else {
     while(f.available()) {
       configHtml = configHtml + f.readString();
