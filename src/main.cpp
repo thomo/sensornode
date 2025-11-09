@@ -30,7 +30,7 @@
 #define FONT_LARGE Landasans48
 
 // +++++++++++++++++++
-const char COMPILE_INFO[] PROGMEM = {__DATE__ " " __TIME__ " - v2.1"};
+const char COMPILE_INFO[] PROGMEM = {__DATE__ " " __TIME__ " - v2.2"};
 // +++++++++++++++++++
 
 // set SENSORNODE_VERSION in platformio.ini
@@ -46,6 +46,8 @@ const char COMPILE_INFO[] PROGMEM = {__DATE__ " " __TIME__ " - v2.1"};
 
 #define SENSORNODE_WITH_DISPLAY_VERSION 2
 #define ANALOG_SENSOR_ADDR "a"
+#define WIFI_RSSI_SENSOR_ADDR "rssi"
+
 // +++++++++++++++++++
 
 #include "weather.h"
@@ -66,7 +68,7 @@ const char COMPILE_INFO[] PROGMEM = {__DATE__ " " __TIME__ " - v2.1"};
 
 const String CONFIG_HTML = "/config.html";
 const String CONFIG_FILE = "/config.cfg";
-#define MAX_SENSORS 10
+#define MAX_SENSORS 11
 
 #define SIZE_JSON_ONE_SENSOR   (sizeof("'123456789012345678901234567890':{'enabled':1,'location':'123456789012345678901234567890','type':'123456789012345678901234567890','measurand':'123456789012345678901234567890','value':'12345678901234567890','correction':'1234567','show':1},"))
 #define SIZE_JSONV_SENSORS     (SIZE_JSON_ONE_SENSOR * MAX_SENSORS)
@@ -435,6 +437,8 @@ void fetchSensorValues() {
   }
 
   setSensorDataValue(ANALOG_SENSOR_ADDR, 1.0 * analogRead(A0));
+
+  setSensorDataValue(WIFI_RSSI_SENSOR_ADDR, WiFi.RSSI());
 }
 
 uint16_t getPayload(char payload[]) {
@@ -947,6 +951,10 @@ void setupAnalogSensor() {
   addSensor(ANALOG_SENSOR_ADDR, "LDR", "brightness");
 }
 
+void setupWifiRssiSensor() {
+  addSensor(WIFI_RSSI_SENSOR_ADDR, "WIFI", "rssi");
+}
+
 void setupDisplay() {
   if (hasDisplay) {
     tft.init();
@@ -1019,6 +1027,7 @@ void setup(void) {
   setupOneWireSensors();
   setupI2CSensors();
   setupAnalogSensor();
+  setupWifiRssiSensor();
 
   loadConfig();
 
